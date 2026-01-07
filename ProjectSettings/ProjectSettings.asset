@@ -48,6 +48,7 @@ PlayerSettings:
   defaultScreenHeightWeb: 600
   m_StereoRenderingPath: 0
   m_ActiveColorSpace: 1
+  unsupportedMSAAFallback: 0
   m_SpriteBatchVertexThreshold: 300
   m_MTRendering: 1
   mipStripping: 0
@@ -75,6 +76,7 @@ PlayerSettings:
   androidMinimumWindowWidth: 400
   androidMinimumWindowHeight: 300
   androidFullscreenMode: 1
+  androidAutoRotationBehavior: 1
   defaultIsNativeResolution: 1
   macRetinaSupport: 1
   runInBackground: 1
@@ -86,6 +88,7 @@ PlayerSettings:
   hideHomeButton: 0
   submitAnalytics: 1
   usePlayerLog: 1
+  dedicatedServerOptimizations: 0
   bakeCollisionMeshes: 0
   forceSingleInstance: 0
   useFlipModelSwapchain: 1
@@ -125,6 +128,7 @@ PlayerSettings:
   switchNVNMaxPublicTextureIDCount: 0
   switchNVNMaxPublicSamplerIDCount: 0
   switchNVNGraphicsFirmwareMemory: 32
+  switchMaxWorkerMultiple: 8
   stadiaPresentMode: 0
   stadiaTargetFramerate: 0
   vulkanNumSwapchainBuffers: 3
@@ -133,6 +137,8 @@ PlayerSettings:
   vulkanEnableLateAcquireNextImage: 0
   vulkanEnableCommandBufferRecycling: 1
   loadStoreDebugModeEnabled: 0
+  visionOSBundleVersion: 1.0
+  tvOSBundleVersion: 1.0
   bundleVersion: 1.0
   preloadedAssets: []
   metroInputSource: 0
@@ -145,6 +151,7 @@ PlayerSettings:
   isWsaHolographicRemotingEnabled: 0
   enableFrameTimingStats: 0
   enableOpenGLProfilerGPURecorders: 1
+  allowHDRDisplaySupport: 0
   useHDRDisplay: 0
   hdrBitDepth: 0
   m_ColorGamuts: 00000000
@@ -230,6 +237,7 @@ PlayerSettings:
   iOSMetalForceHardShadows: 0
   metalEditorSupport: 1
   metalAPIValidation: 1
+  metalCompileShaderBinary: 0
   iOSRenderExtraFrameOnPause: 1
   iosCopyPluginsCodeInsteadOfSymlink: 0
   appleDeveloperTeamID: 
@@ -534,7 +542,7 @@ PlayerSettings:
   switchSocketConcurrencyLimit: 14
   switchScreenResolutionBehavior: 2
   switchUseCPUProfiler: 0
-  switchUseGOLDLinker: 0
+  switchEnableFileSystemTrace: 0
   switchLTOSetting: 0
   switchApplicationID: 0x0005000C10000001
   switchNSODependencies: 
@@ -664,7 +672,6 @@ PlayerSettings:
   switchSocketBufferEfficiency: 4
   switchSocketInitializeEnabled: 1
   switchNetworkInterfaceManagerInitializeEnabled: 1
-  switchPlayerConnectionEnabled: 1
   switchUseNewStyleFilepaths: 1
   switchUseLegacyFmodPriorities: 0
   switchUseMicroSleepForYield: 1
@@ -775,22 +782,23 @@ PlayerSettings:
   webGLMemoryGeometricGrowthCap: 96
   webGLPowerPreference: 2
   scriptingDefineSymbols:
-    Android: CROSS_PLATFORM_INPUT;MOBILE_INPUT;UNITY_POST_PROCESSING_STACK_V2
-    EmbeddedLinux: UNITY_POST_PROCESSING_STACK_V2
-    GameCoreXboxOne: UNITY_POST_PROCESSING_STACK_V2
-    LinuxHeadlessSimulation: UNITY_POST_PROCESSING_STACK_V2
-    Nintendo Switch: UNITY_POST_PROCESSING_STACK_V2
-    PS4: UNITY_POST_PROCESSING_STACK_V2
-    PS5: UNITY_POST_PROCESSING_STACK_V2
-    QNX: UNITY_POST_PROCESSING_STACK_V2
-    Stadia: UNITY_POST_PROCESSING_STACK_V2
-    Standalone: CROSS_PLATFORM_INPUT;UNITY_POST_PROCESSING_STACK_V2
-    VisionOS: UNITY_POST_PROCESSING_STACK_V2
-    WebGL: UNITY_POST_PROCESSING_STACK_V2
-    Windows Store Apps: UNITY_POST_PROCESSING_STACK_V2
-    XboxOne: UNITY_POST_PROCESSING_STACK_V2
-    iPhone: CROSS_PLATFORM_INPUT;MOBILE_INPUT;UNITY_POST_PROCESSING_STACK_V2
-    tvOS: UNITY_POST_PROCESSING_STACK_V2
+    Android: CROSS_PLATFORM_INPUT;MOBILE_INPUT;UNITY_POST_PROCESSING_STACK_V2;DOTWEEN
+    EmbeddedLinux: UNITY_POST_PROCESSING_STACK_V2;DOTWEEN
+    GameCoreScarlett: DOTWEEN
+    GameCoreXboxOne: UNITY_POST_PROCESSING_STACK_V2;DOTWEEN
+    LinuxHeadlessSimulation: UNITY_POST_PROCESSING_STACK_V2;DOTWEEN
+    Nintendo Switch: UNITY_POST_PROCESSING_STACK_V2;DOTWEEN
+    PS4: UNITY_POST_PROCESSING_STACK_V2;DOTWEEN
+    PS5: UNITY_POST_PROCESSING_STACK_V2;DOTWEEN
+    QNX: UNITY_POST_PROCESSING_STACK_V2;DOTWEEN
+    Stadia: UNITY_POST_PROCESSING_STACK_V2;DOTWEEN
+    Standalone: CROSS_PLATFORM_INPUT;UNITY_POST_PROCESSING_STACK_V2;DOTWEEN
+    VisionOS: UNITY_POST_PROCESSING_STACK_V2;DOTWEEN
+    WebGL: UNITY_POST_PROCESSING_STACK_V2;DOTWEEN
+    Windows Store Apps: UNITY_POST_PROCESSING_STACK_V2;DOTWEEN
+    XboxOne: UNITY_POST_PROCESSING_STACK_V2;DOTWEEN
+    iPhone: CROSS_PLATFORM_INPUT;MOBILE_INPUT;UNITY_POST_PROCESSING_STACK_V2;DOTWEEN
+    tvOS: UNITY_POST_PROCESSING_STACK_V2;DOTWEEN
   additionalCompilerArguments: {}
   platformArchitecture:
     iPhone: 1
@@ -851,6 +859,7 @@ PlayerSettings:
   metroTileBackgroundColor: {r: 0, g: 0, b: 0, a: 1}
   metroSplashScreenBackgroundColor: {r: 0, g: 0, b: 0, a: 1}
   metroSplashScreenUseBackgroundColor: 0
+  syncCapabilities: 0
   platformCapabilities:
     XboxOne:
       enus: true

@@ -103,13 +103,17 @@ namespace FogSystem
 
         public FogManager.FOG_TYPE GetGridInfo(int cellX, int cellZ)
         {
-            if (cellX > 1 && cellX <= dataGridCountX - 1 && cellZ > 1 && cellZ <= dataGridCountZ - 1)
+            if (cellX >= 0 && cellX < dataGridCountX && cellZ >= 0 && cellZ < dataGridCountZ)
             {
-                if (gridData[cellX - 1, cellZ - 1] == FogManager.FOG_TYPE.Unlocking ||
-                    gridData[cellX, cellZ - 1] == FogManager.FOG_TYPE.Unlocking ||
-                    gridData[cellX - 1, cellZ] == FogManager.FOG_TYPE.Unlocking ||
-                    gridData[cellX, cellZ] == FogManager.FOG_TYPE.Unlocking
-                   )
+                // 检查周围是否有 Unlocking 状态 (传染逻辑)
+                // 注意边界检查，防止数组越界
+                bool isUnlocking = false;
+                if (cellX > 0 && cellZ > 0 && gridData[cellX - 1, cellZ - 1] == FogManager.FOG_TYPE.Unlocking) isUnlocking = true;
+                else if (cellZ > 0 && gridData[cellX, cellZ - 1] == FogManager.FOG_TYPE.Unlocking) isUnlocking = true;
+                else if (cellX > 0 && gridData[cellX - 1, cellZ] == FogManager.FOG_TYPE.Unlocking) isUnlocking = true;
+                else if (gridData[cellX, cellZ] == FogManager.FOG_TYPE.Unlocking) isUnlocking = true;
+
+                if (isUnlocking)
                 {
                     return FogManager.FOG_TYPE.Unlocking;
                 }

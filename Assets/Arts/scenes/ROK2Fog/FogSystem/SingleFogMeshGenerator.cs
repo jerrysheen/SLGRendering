@@ -195,11 +195,8 @@ namespace FogSystem
                     int globalGridX = startGridX + localX;
                     int globalGridZ = startGridZ + localZ;
 
-                    // 优化：如果格子完全解锁，直接跳过生成三角形 (与旧版 TriangleGenerationType.None 逻辑一致)
-                    if (FogManager.instance.FogData.GetGridInfo(globalGridX, globalGridZ) == FogManager.FOG_TYPE.Unlocked)
-                    {
-                        continue;
-                    }
+                    // 优化：已移除直接跳过Unlocked的逻辑，因为Unlocked格子也需要细分扫描以保留边缘斜坡
+                    // if (FogManager.instance.FogData.GetGridInfo(globalGridX, globalGridZ) == FogManager.FOG_TYPE.Unlocked) { continue; }
 
                     // 判断是否需要细分
                     bool needSubdivision = CheckIfNeedSubdivision(globalGridX, globalGridZ, fogHeight);
@@ -239,18 +236,33 @@ namespace FogSystem
                         int vR_Mid = GetOrCreateVertex(subX + 2, subZ + 1, globalGridX, globalGridZ, 1, 0.5f, fogHeight, mapW, ref currentVertexCount);
                         int vCenter = GetOrCreateVertex(subX + 1, subZ + 1, globalGridX, globalGridZ, 0.5f, 0.5f, fogHeight, mapW, ref currentVertexCount);
 
-                        // 生成 4 个小 Quad (统一让对角线连接 Center，保证对称性)
-                        // 左下块: bl=vBL, tr=vCenter. 需要 Flip (BL-TR)
-                        AddQuadTriangles(vBL, vB_Mid, vL_Mid, vCenter, ref currentTriangleCount, true); 
+                        // === 1. 生成 4 个角落三角形 (Corner Triangles) ===
+                        // 顺时针顺序 (CW)
+                        // 左下角: BL -> L_Mid -> B_Mid
+                        AddTriangleWithCulling(vBL, vL_Mid, vB_Mid, ref currentTriangleCount);
                         
-                        // 右下块: tl=vCenter, br=vBR. 默认 (TL-BR) 即可
-                        AddQuadTriangles(vB_Mid, vBR, vCenter, vR_Mid, ref currentTriangleCount, false); 
+                        // 右下角: BR -> B_Mid -> R_Mid
+                        AddTriangleWithCulling(vBR, vB_Mid, vR_Mid, ref currentTriangleCount);
                         
-                        // 左上块: tl=vTL, br=vCenter. 默认 (TL-BR) 即可
-                        AddQuadTriangles(vL_Mid, vCenter, vTL, vT_Mid, ref currentTriangleCount, false); 
+                        // 左上角: TL -> T_Mid -> L_Mid
+                        AddTriangleWithCulling(vTL, vT_Mid, vL_Mid, ref currentTriangleCount);
                         
-                        // 右上块: bl=vCenter, tr=vTR. 需要 Flip (BL-TR)
-                        AddQuadTriangles(vCenter, vR_Mid, vT_Mid, vTR, ref currentTriangleCount, true);
+                        // 右上角: TR -> R_Mid -> T_Mid
+                        AddTriangleWithCulling(vTR, vR_Mid, vT_Mid, ref currentTriangleCount);
+                        
+                        // === 2. 生成 4 个中心三角形 (Center Triangles) ===
+                        // 顺时针顺序 (CW)
+                        // 下方: Center -> B_Mid -> L_Mid
+                        AddTriangleWithCulling(vCenter, vB_Mid, vL_Mid, ref currentTriangleCount);
+                        
+                        // 右方: Center -> R_Mid -> B_Mid
+                        AddTriangleWithCulling(vCenter, vR_Mid, vB_Mid, ref currentTriangleCount);
+                        
+                        // 上方: Center -> T_Mid -> R_Mid
+                        AddTriangleWithCulling(vCenter, vT_Mid, vR_Mid, ref currentTriangleCount);
+                        
+                        // 左方: Center -> L_Mid -> T_Mid
+                        AddTriangleWithCulling(vCenter, vL_Mid, vT_Mid, ref currentTriangleCount);
                     }
                 }
             }
@@ -293,6 +305,27 @@ namespace FogSystem
             mesh.UploadMeshData(true);
 
         }
+
+        // 新增辅助方法：带剔除的三角形添加
+        private static void AddTriangleWithCulling(int v1, int v2, int v3, ref int triCount)
+        {
+            // 检查三个顶点的高度
+            float h1 = s_vertexArray[v1].y;
+            float h2 = s_vertexArray[v2].y;
+            float h3 = s_vertexArray[v3].y;
+            
+            // 如果三个顶点的高度都非常小（已解锁），则剔除该三角形
+            // 这里使用 0.01f 作为阈值，假设高度为0代表完全解锁
+            const float CULL_THRESHOLD = 0.01f;
+            if (h1 < CULL_THRESHOLD && h2 < CULL_THRESHOLD && h3 < CULL_THRESHOLD)
+            {
+                return;
+            }
+
+            s_trianglesArray[triCount++] = (ushort)v1;
+            s_trianglesArray[triCount++] = (ushort)v2;
+            s_trianglesArray[triCount++] = (ushort)v3;
+        }
         
         // 辅助：添加一个 Quad 的两个三角形
         // flipDiagonal = false: 剖分线 TL-BR (默认)
@@ -328,9 +361,9 @@ namespace FogSystem
         // 辅助：判断是否需要细分
         private static bool CheckIfNeedSubdivision(int globalX, int globalZ, float fogHeight)
         {
-            // 如果已经解锁了，不需要细分 (保持 1x1 简单网格)
-            if (FogManager.instance.FogData.GetGridInfo(globalX, globalZ) == FogManager.FOG_TYPE.Unlocked)
-                return false;
+            // 已移除：Unlocked 格子现在也需要细分检查，以便使用 Diamond Pattern 进行精确剔除
+            // if (FogManager.instance.FogData.GetGridInfo(globalX, globalZ) == FogManager.FOG_TYPE.Unlocked)
+            //    return false;
 
             // 如果是 Locked：
             // 检查四个角点高度。如果四个角点都 >= fogHeight，说明周围也是 Locked，不需要细分。
@@ -371,21 +404,16 @@ namespace FogSystem
             // 设置颜色
             FogManager.FOG_TYPE info = FogManager.instance.FogData.GetGridInfo(gridX, gridZ);
             
-            // 修正：UV逻辑需要严格跟随格子状态，防止 Locked 格子的边缘点被误判为 Unlocked
+            // 修正：UV逻辑需要严格跟随顶点实际高度，防止 Unlocked 格子的边缘隆起部分被误判为已解锁
             bool isUnlockedVertex;
+
+            // 只要顶点高度接近0，就认为是已解锁顶点；否则（包括半高和全高）都视为未解锁
+            isUnlockedVertex = h < 0.001f;
+
+            // 特殊情况：如果是 Locked 格子，为了保险起见，强制为 false (虽然理论上 Locked 格子高度肯定 > 0)
             if (info == FogManager.FOG_TYPE.Locked)
             {
-                // 如果格子是 Locked，那么它的所有顶点（即使是被邻居拉低到0的边缘点）都应该表现为 Locked
                 isUnlockedVertex = false;
-            }
-            else if (info == FogManager.FOG_TYPE.Unlocked)
-            {
-                isUnlockedVertex = true;
-            }
-            else // Unlocking
-            {
-                // Unlocking 状态下，根据实际高度动态判断
-                isUnlockedVertex = h < 0.001f;
             }
 
             s_uvsArray[newIndex] = GetVertexColor(isUnlockedVertex, info);
@@ -420,7 +448,40 @@ namespace FogSystem
             // 2. 整数角点
             if (!isHalfX && !isHalfZ)
             {
-                return FogManager.instance.FogData.GetVertexHeight(Mathf.RoundToInt(worldX), Mathf.RoundToInt(worldZ));
+                int vx = Mathf.RoundToInt(worldX);
+                int vz = Mathf.RoundToInt(worldZ);
+
+                // 获取周围四个格子的状态
+                // TL(vx-1, vz) | TR(vx, vz)
+                // -------------+-------------
+                // BL(vx-1, vz-1)| BR(vx, vz-1)
+                
+                var sBL = FogManager.instance.FogData.GetGridInfo(vx - 1, vz - 1);
+                var sBR = FogManager.instance.FogData.GetGridInfo(vx, vz - 1);
+                var sTL = FogManager.instance.FogData.GetGridInfo(vx - 1, vz);
+                var sTR = FogManager.instance.FogData.GetGridInfo(vx, vz);
+
+                int unlockedCount = 0;
+                if (sBL == FogManager.FOG_TYPE.Unlocked) unlockedCount++;
+                if (sBR == FogManager.FOG_TYPE.Unlocked) unlockedCount++;
+                if (sTL == FogManager.FOG_TYPE.Unlocked) unlockedCount++;
+                if (sTR == FogManager.FOG_TYPE.Unlocked) unlockedCount++;
+
+                if (unlockedCount == 0)
+                {
+                    // 0个解锁：完全保持高度
+                    return fogHeight;
+                }
+                else if (unlockedCount == 1)
+                {
+                    // 1个解锁：半高度
+                    return fogHeight * 0.5f;
+                }
+                else
+                {
+                    // 2个及以上解锁：完全塌陷
+                    return FogManager.instance.FogData.GetVertexHeight(vx, vz);
+                }
             }
 
             // 3. 边中点逻辑优化：

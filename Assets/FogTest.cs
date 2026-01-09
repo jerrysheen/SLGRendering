@@ -23,7 +23,42 @@ public class FogTest : MonoBehaviour
     // Update is called once per frame
     void Update()
     {
+        if (Input.GetMouseButtonDown(0))
+        {
+            Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition);
+            Plane groundPlane = new Plane(Vector3.up, 0); // 假设地面在 Y=0
+            if (groundPlane.Raycast(ray, out float enter))
+            {
+                Vector3 hitPoint = ray.GetPoint(enter);
+                HandleClick(hitPoint);
+            }
+        }
+    }
+    
+    private void HandleClick(Vector3 worldPos)
+    {
+        var manager = FogManager.GetInstance();
+        if (manager == null) return;
+
+        // 计算网格坐标
+        // World = Grid * (GlobalScale * CellSize)
+        // Grid = World / (GlobalScale * CellSize)
+        float unitSize = manager.GlobalScale * manager.GridCellSize;
         
+        int gridX = Mathf.FloorToInt(worldPos.x / unitSize);
+        int gridY = Mathf.FloorToInt(worldPos.z / unitSize);
+
+        // 边界检查
+        int mapW = manager.MapWidth / manager.GridCellSize;
+        int mapH = manager.MapHeight / manager.GridCellSize;
+
+        if (gridX >= 0 && gridX < mapW && gridY >= 0 && gridY < mapH)
+        {
+            Debug.Log($"Click World: {worldPos}, Unlock Grid: ({gridX}, {gridY})");
+            manager.UpdateFogGridInfo(new Vector2Int(gridX, gridY), true);
+            FogManager.GetInstance().RebuildFogMesh();
+        
+        }
     }
 
     // unity 退出游戏时调用

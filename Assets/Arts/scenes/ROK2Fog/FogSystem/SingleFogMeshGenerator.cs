@@ -23,6 +23,13 @@ namespace FogSystem
     /// </summary>
     public class SingleFogMeshGenerator
     {
+        private enum VertexFogState
+        {
+            Locked,     // 高高度 (FogHeight)
+            Half,       // 半高度 (FogHeight * 0.5)
+            Unlocked    // 地面高度 (通常为0)
+        }
+
         [StructLayout(LayoutKind.Sequential)]
         struct UV16
         {
@@ -143,7 +150,7 @@ namespace FogSystem
                 new Vector3((startGridX + blockGridCountX / 2.0f)
                     , height / 2.0f, (startGridZ + blockGridCountZ / 2.0f)), 
                 new Vector3(blockGridCountX, height, blockGridCountZ));
-            mesh.UploadMeshData(true);
+            //mesh.UploadMeshData(true);
         }
         
         
@@ -199,7 +206,7 @@ namespace FogSystem
                     // if (FogManager.instance.FogData.GetGridInfo(globalGridX, globalGridZ) == FogManager.FOG_TYPE.Unlocked) { continue; }
 
                     // 判断是否需要细分
-                    bool needSubdivision = CheckIfNeedSubdivision(globalGridX, globalGridZ, fogHeight);
+                    bool needSubdivision = CheckIfNeedSubdivision(startGridX, startGridZ, localX, localZ);
 
                     if (!needSubdivision)
                     {
@@ -208,10 +215,10 @@ namespace FogSystem
                         int subZ = localZ * 2;
                         
                         // 获取或创建 4 个角点
-                        int vBL = GetOrCreateVertex(subX, subZ, globalGridX, globalGridZ, 0, 0, fogHeight, mapW, ref currentVertexCount);
-                        int vBR = GetOrCreateVertex(subX + 2, subZ, globalGridX, globalGridZ, 1, 0, fogHeight, mapW, ref currentVertexCount);
-                        int vTL = GetOrCreateVertex(subX, subZ + 2, globalGridX, globalGridZ, 0, 1, fogHeight, mapW, ref currentVertexCount);
-                        int vTR = GetOrCreateVertex(subX + 2, subZ + 2, globalGridX, globalGridZ, 1, 1, fogHeight, mapW, ref currentVertexCount);
+                        int vBL = GetOrCreateVertex(subX, subZ, startGridX, startGridZ, fogHeight, ref currentVertexCount);
+                        int vBR = GetOrCreateVertex(subX + 2, subZ, startGridX, startGridZ, fogHeight, ref currentVertexCount);
+                        int vTL = GetOrCreateVertex(subX, subZ + 2, startGridX, startGridZ, fogHeight, ref currentVertexCount);
+                        int vTR = GetOrCreateVertex(subX + 2, subZ + 2, startGridX, startGridZ, fogHeight, ref currentVertexCount);
 
                         // 生成 2 个大三角形 (标准 Quad)
                         AddQuadTriangles(vBL, vBR, vTL, vTR, ref currentTriangleCount);
@@ -224,17 +231,17 @@ namespace FogSystem
 
                         // 获取或创建 9 个顶点
                         // 角点
-                        int vBL = GetOrCreateVertex(subX, subZ, globalGridX, globalGridZ, 0, 0, fogHeight, mapW, ref currentVertexCount);
-                        int vBR = GetOrCreateVertex(subX + 2, subZ, globalGridX, globalGridZ, 1, 0, fogHeight, mapW, ref currentVertexCount);
-                        int vTL = GetOrCreateVertex(subX, subZ + 2, globalGridX, globalGridZ, 0, 1, fogHeight, mapW, ref currentVertexCount);
-                        int vTR = GetOrCreateVertex(subX + 2, subZ + 2, globalGridX, globalGridZ, 1, 1, fogHeight, mapW, ref currentVertexCount);
+                        int vBL = GetOrCreateVertex(subX, subZ, startGridX, startGridZ, fogHeight, ref currentVertexCount);
+                        int vBR = GetOrCreateVertex(subX + 2, subZ, startGridX, startGridZ, fogHeight, ref currentVertexCount);
+                        int vTL = GetOrCreateVertex(subX, subZ + 2, startGridX, startGridZ, fogHeight, ref currentVertexCount);
+                        int vTR = GetOrCreateVertex(subX + 2, subZ + 2, startGridX, startGridZ, fogHeight, ref currentVertexCount);
                         
                         // 边中点和中心点
-                        int vB_Mid = GetOrCreateVertex(subX + 1, subZ, globalGridX, globalGridZ, 0.5f, 0, fogHeight, mapW, ref currentVertexCount);
-                        int vT_Mid = GetOrCreateVertex(subX + 1, subZ + 2, globalGridX, globalGridZ, 0.5f, 1, fogHeight, mapW, ref currentVertexCount);
-                        int vL_Mid = GetOrCreateVertex(subX, subZ + 1, globalGridX, globalGridZ, 0, 0.5f, fogHeight, mapW, ref currentVertexCount);
-                        int vR_Mid = GetOrCreateVertex(subX + 2, subZ + 1, globalGridX, globalGridZ, 1, 0.5f, fogHeight, mapW, ref currentVertexCount);
-                        int vCenter = GetOrCreateVertex(subX + 1, subZ + 1, globalGridX, globalGridZ, 0.5f, 0.5f, fogHeight, mapW, ref currentVertexCount);
+                        int vB_Mid = GetOrCreateVertex(subX + 1, subZ, startGridX, startGridZ, fogHeight, ref currentVertexCount);
+                        int vT_Mid = GetOrCreateVertex(subX + 1, subZ + 2, startGridX, startGridZ, fogHeight, ref currentVertexCount);
+                        int vL_Mid = GetOrCreateVertex(subX, subZ + 1, startGridX, startGridZ, fogHeight, ref currentVertexCount);
+                        int vR_Mid = GetOrCreateVertex(subX + 2, subZ + 1, startGridX, startGridZ, fogHeight, ref currentVertexCount);
+                        int vCenter = GetOrCreateVertex(subX + 1, subZ + 1, startGridX, startGridZ, fogHeight, ref currentVertexCount);
 
                         // === 1. 生成 4 个角落三角形 (Corner Triangles) ===
                         // 顺时针顺序 (CW)
@@ -302,7 +309,7 @@ namespace FogSystem
                 new Vector3(blockGridCountX, fogHeight, blockGridCountZ));
             
             // 释放 CPU 端内存拷贝 (System Memory)，避免双份内存
-            mesh.UploadMeshData(true);
+            // mesh.UploadMeshData(true);
 
         }
 
@@ -359,58 +366,78 @@ namespace FogSystem
         }
 
         // 辅助：判断是否需要细分
-        private static bool CheckIfNeedSubdivision(int globalX, int globalZ, float fogHeight)
+        private static bool CheckIfNeedSubdivision(int startGridX, int startGridZ, int localX, int localZ)
         {
-            // 已移除：Unlocked 格子现在也需要细分检查，以便使用 Diamond Pattern 进行精确剔除
-            // if (FogManager.instance.FogData.GetGridInfo(globalX, globalZ) == FogManager.FOG_TYPE.Unlocked)
-            //    return false;
-
             // 如果是 Locked：
-            // 检查四个角点高度。如果四个角点都 >= fogHeight，说明周围也是 Locked，不需要细分。
-            // 只要有一个角点 < fogHeight (被拉低)，就需要细分来支撑中心。
-            FogManager.instance.FogData.GetCellCornerHeights(globalX, globalZ, out float bl, out float br, out float tr, out float tl);
+            // 检查四个角点状态。如果四个角点都 == Locked，说明周围也是 Locked，不需要细分。
+            // 只要有一个角点 != Locked (被拉低)，就需要细分来支撑中心。
             
-            float threshold = fogHeight - 0.01f;
-            if (bl < threshold || br < threshold || tr < threshold || tl < threshold)
-                return true;
+            // 计算全局 SubGrid 坐标 (2x)
+            int globalSubX = (startGridX + localX) * 2;
+            int globalSubZ = (startGridZ + localZ) * 2;
+
+            // 检查四个角点 (BL, BR, TL, TR)
+            // BL: (x, z)
+            // BR: (x+2, z)
+            // TL: (x, z+2)
+            // TR: (x+2, z+2)
+            
+            if (CalculateVertexState(globalSubX, globalSubZ) != VertexFogState.Locked) return true;
+            if (CalculateVertexState(globalSubX + 2, globalSubZ) != VertexFogState.Locked) return true;
+            if (CalculateVertexState(globalSubX, globalSubZ + 2) != VertexFogState.Locked) return true;
+            if (CalculateVertexState(globalSubX + 2, globalSubZ + 2) != VertexFogState.Locked) return true;
 
             return false;
         }
 
         // 辅助：获取或创建顶点
-        private static int GetOrCreateVertex(int subX, int subZ, int gridX, int gridZ, float offsetX, float offsetZ, 
-            float fogHeight, int mapWidth, ref int vertexCount)
+        // startBlockGridX/Z: Block 的起始网格坐标
+        // localSubX/Z: Block 内的局部 SubGrid 坐标 (0, 1, 2...)
+        private static int GetOrCreateVertex(int localSubX, int localSubZ, int startBlockGridX, int startBlockGridZ, 
+            float fogHeight, ref int vertexCount)
         {
-            int mapIndex = subZ * mapWidth + subX;
+            int mapIndex = localSubZ * s_mapWidth + localSubX;
             if (s_vertexIndexMap[mapIndex] != -1)
             {
                 return s_vertexIndexMap[mapIndex];
             }
 
+            // 计算全局 SubGrid 坐标
+            int globalSubX = startBlockGridX * 2 + localSubX;
+            int globalSubZ = startBlockGridZ * 2 + localSubZ;
+
+            // 1. 计算状态 (纯整数逻辑)
+            VertexFogState state = CalculateVertexState(globalSubX, globalSubZ);
+
+            // 2. 根据状态决定高度
+            float h = 0f;
+            switch (state)
+            {
+                case VertexFogState.Locked: h = fogHeight; break;
+                case VertexFogState.Half:   h = fogHeight * 0.5f; break;
+                case VertexFogState.Unlocked: h = 0f; break; 
+            }
+
+            // 3. 计算世界坐标
+            float worldX = globalSubX * 0.5f;
+            float worldZ = globalSubZ * 0.5f;
+            
             // 创建新顶点
             int newIndex = vertexCount;
             vertexCount++;
-
-            // 计算实际世界坐标
-            float worldX = gridX + offsetX;
-            float worldZ = gridZ + offsetZ;
             
-            // 计算高度 (核心逻辑：中心点独立控制)
-            float h = GetHybridHeight(worldX, worldZ, fogHeight, offsetX, offsetZ, gridX, gridZ);
-            
-            // 设置位置
             s_vertexArray[newIndex] = new Vector3(worldX, h, worldZ);
             
-            // 设置颜色
-            FogManager.FOG_TYPE info = FogManager.instance.FogData.GetGridInfo(gridX, gridZ);
+            // 设置颜色/UV
+            // 计算当前顶点所在的 Grid 坐标 (用于获取 GridInfo)
+            // 右移1位相当于除以2
+            int gridX = globalSubX >> 1;
+            int gridZ = globalSubZ >> 1;
             
-            // 修正：UV逻辑需要严格跟随顶点实际高度，防止 Unlocked 格子的边缘隆起部分被误判为已解锁
-            bool isUnlockedVertex;
+            FogManager.FOG_TYPE info = FogManager.instance.FogData.GetGridInfo(gridX, gridZ);
+            bool isUnlockedVertex = (state == VertexFogState.Unlocked);
 
-            // 只要顶点高度接近0，就认为是已解锁顶点；否则（包括半高和全高）都视为未解锁
-            isUnlockedVertex = h < 0.001f;
-
-            // 特殊情况：如果是 Locked 格子，为了保险起见，强制为 false (虽然理论上 Locked 格子高度肯定 > 0)
+            // 特殊情况修正：Locked 格子即便被拉低到 0 (理论上不应该，但作为防御)，也不能视为 Unlocked UV
             if (info == FogManager.FOG_TYPE.Locked)
             {
                 isUnlockedVertex = false;
@@ -423,255 +450,75 @@ namespace FogSystem
             return newIndex;
         }
 
-        // 计算混合高度
-        private static float GetHybridHeight(float worldX, float worldZ, float fogHeight, float offsetX, float offsetZ,
-            int currentGridX, int currentGridZ)
+        // 核心算法：完全移除浮点运算，基于整数坐标计算顶点状态
+        private static VertexFogState CalculateVertexState(int gx, int gz)
         {
-            // 1. 判断是否是中心点 (使用传入的 offset 避免浮点误差)
-            float fracX = offsetX - Mathf.Floor(offsetX);
-            float fracZ = offsetZ - Mathf.Floor(offsetZ);
+            // 利用位运算判断是否在半格位置
+            // 奇数表示在 .5 位置
+            bool isHalfX = (gx & 1) != 0; 
+            bool isHalfZ = (gz & 1) != 0;
             
-            bool isHalfX = Mathf.Abs(fracX - 0.5f) < 0.01f;
-            bool isHalfZ = Mathf.Abs(fracZ - 0.5f) < 0.01f;
+            // 坐标右移1位即除以2，得到对应的 Grid 索引
+            int gridX = gx >> 1;
+            int gridZ = gz >> 1;
 
+            // === 情况 A: 中心点 (Odd, Odd) ===
             if (isHalfX && isHalfZ)
             {
-                // 纯中心点
-                int cx = currentGridX + Mathf.FloorToInt(offsetX);
-                int cz = currentGridZ + Mathf.FloorToInt(offsetZ);
-                // 对于中心点，只要不是 Unlocked，就保持高高度
-                var state = FogManager.instance.FogData.GetGridInfo(cx, cz);
-                if (state != FogManager.FOG_TYPE.Unlocked) return fogHeight; 
-                return 0f;
+                // 对于中心点，只要不是 Unlocked 格子，就保持 Locked 高度
+                var info = FogManager.instance.FogData.GetGridInfo(gridX, gridZ);
+                return (info == FogManager.FOG_TYPE.Unlocked) ? VertexFogState.Unlocked : VertexFogState.Locked;
             }
-            
-            // 2. 整数角点
+
+            // === 情况 B: 整数角点 (Even, Even) ===
             if (!isHalfX && !isHalfZ)
             {
-                int vx = Mathf.RoundToInt(worldX);
-                int vz = Mathf.RoundToInt(worldZ);
-
-                // 获取周围四个格子的状态
-                // TL(vx-1, vz) | TR(vx, vz)
-                // -------------+-------------
-                // BL(vx-1, vz-1)| BR(vx, vz-1)
+                // 角点是周围四个格子的交点
+                // TL(x-1, z) | TR(x, z)
+                // -----------+-----------
+                // BL(x-1, z-1)| BR(x, z-1)
                 
-                var sBL = FogManager.instance.FogData.GetGridInfo(vx - 1, vz - 1);
-                var sBR = FogManager.instance.FogData.GetGridInfo(vx, vz - 1);
-                var sTL = FogManager.instance.FogData.GetGridInfo(vx - 1, vz);
-                var sTR = FogManager.instance.FogData.GetGridInfo(vx, vz);
-
                 int unlockedCount = 0;
-                if (sBL == FogManager.FOG_TYPE.Unlocked) unlockedCount++;
-                if (sBR == FogManager.FOG_TYPE.Unlocked) unlockedCount++;
-                if (sTL == FogManager.FOG_TYPE.Unlocked) unlockedCount++;
-                if (sTR == FogManager.FOG_TYPE.Unlocked) unlockedCount++;
+                if (IsGridUnlocked(gridX - 1, gridZ - 1)) unlockedCount++;
+                if (IsGridUnlocked(gridX,     gridZ - 1)) unlockedCount++;
+                if (IsGridUnlocked(gridX - 1, gridZ))     unlockedCount++;
+                if (IsGridUnlocked(gridX,     gridZ))     unlockedCount++;
 
-                if (unlockedCount == 0)
-                {
-                    // 0个解锁：完全保持高度
-                    return fogHeight;
-                }
-                else if (unlockedCount == 1)
-                {
-                    // 1个解锁：半高度
-                    return fogHeight * 0.5f;
-                }
-                else
-                {
-                    // 2个及以上解锁：完全塌陷
-                    return FogManager.instance.FogData.GetVertexHeight(vx, vz);
-                }
+                if (unlockedCount == 0) return VertexFogState.Locked;
+                if (unlockedCount == 1) return VertexFogState.Half;
+                return VertexFogState.Unlocked; // 2个及以上解锁 -> 塌陷
             }
 
-            // 3. 边中点逻辑优化：
-            // 直接基于 currentGridX/Z 和 offsetX/offsetZ 推导相邻格子，避免 worldPos 反推的浮点误差
-            int g1x = currentGridX + Mathf.FloorToInt(offsetX);
-            int g1z = currentGridZ + Mathf.FloorToInt(offsetZ);
-            int g2x = g1x;
-            int g2z = g1z;
-            
-            if (isHalfX) 
+            // === 情况 C: 边中点 (Odd, Even) 或 (Even, Odd) ===
+            int side1X, side1Z, side2X, side2Z;
+
+            if (isHalfX) // 横向边中点 (Odd, Even) -> 上下两侧格子
             {
-                // 点在 (x.5, z.0) -> 横向边中点，Z方向是边界
-                // 如果 offsetZ 接近 0 (下边)，连接 Current 和 Current-Z
-                // 如果 offsetZ 接近 1 (上边)，连接 Current+Z 和 Current
-                if (fracZ < 0.1f) // offsetZ 的小数部分接近0 (即整数)
-                {
-                    // g1z 是当前行，g2z 是下一行
-                    // 但要注意：如果 offsetZ=1，Mathf.FloorToInt(offsetZ)=1。g1z 已经是 current+1 了。
-                    // 所以这里的 g1z 实际上就是 "Upper Grid"。
-                    // 我们只需要找到 "Lower Grid"。
-                    // 边界线在 Z = currentGridZ + offsetZ
-                    // Upper Grid index = currentGridZ + Floor(offsetZ) if offsetZ is int? 
-                    // 不，如果 offsetZ=1，这点位于 Grid(x, z+1) 的下边，和 Grid(x, z) 的上边。
-                    // 简单来说：边界线 Z 坐标为 BZ。
-                    // 格子1：Z = BZ. 格子2：Z = BZ - 1.
-                    
-                    // 利用 worldZ (它是准确的整数)
-                    int boundaryZ = Mathf.RoundToInt(worldZ);
-                    g1z = boundaryZ;     // Upper Grid
-                    g2z = boundaryZ - 1; // Lower Grid
-                }
-                else
-                {
-                    // 不应该发生，因为 isHalfX 意味着 fracZ 是 0 (即 offsetZ 是整数)
-                    // 防御性代码
-                    int boundaryZ = Mathf.RoundToInt(worldZ);
-                    g1z = boundaryZ;
-                    g2z = boundaryZ - 1;
-                }
+                // 边位于 gridZ 和 gridZ-1 之间
+                side1X = gridX; side1Z = gridZ;     // 上 (Z)
+                side2X = gridX; side2Z = gridZ - 1; // 下 (Z-1)
             }
-            else // isHalfZ
+            else // 纵向边中点 (Even, Odd) -> 左右两侧格子
             {
-                // 点在 (x.0, z.5) -> 纵向边中点，X方向是边界
-                int boundaryX = Mathf.RoundToInt(worldX);
-                g1x = boundaryX;     // Right Grid
-                g2x = boundaryX - 1; // Left Grid
+                // 边位于 gridX 和 gridX-1 之间
+                side1X = gridX;     side1Z = gridZ; // 右 (X)
+                side2X = gridX - 1; side2Z = gridZ; // 左 (X-1)
             }
 
-            var s1 = FogManager.instance.FogData.GetGridInfo(g1x, g1z);
-            var s2 = FogManager.instance.FogData.GetGridInfo(g2x, g2z);
-
-            // 如果任意一侧是 Unlocked，这条边就是"岸边"，必须服从角点插值（通常是0）
-            if (s1 == FogManager.FOG_TYPE.Unlocked || s2 == FogManager.FOG_TYPE.Unlocked)
+            // 逻辑：只要任意一侧是 Unlocked，边中点就被拉低
+            if (IsGridUnlocked(side1X, side1Z) || IsGridUnlocked(side2X, side2Z))
             {
-                float floorX = Mathf.Floor(worldX);
-                float floorZ = Mathf.Floor(worldZ);
-                float ceilX = Mathf.Ceil(worldX);
-                float ceilZ = Mathf.Ceil(worldZ);
-                
-                float h1 = FogManager.instance.FogData.GetVertexHeight((int)floorX, (int)floorZ);
-                float h2 = FogManager.instance.FogData.GetVertexHeight((int)ceilX, (int)ceilZ);
-                return (h1 + h2) * 0.5f;
+                return VertexFogState.Unlocked;
             }
             
-            // 如果两侧都是 Locked (或 Unlocking)，这条边是"内陆边"或"悬崖边"
-            return fogHeight;
+            return VertexFogState.Locked;
         }
-        
-        
-        /// <summary>
-        /// 获取三角形生成类型
-        /// </summary>
-        private static TriangleGenerationType GetTriangleGenerationType(int cellX, int cellZ)
+
+        private static bool IsGridUnlocked(int x, int z)
         {
-            // 获取格子四个角点的高度
-            float bottomLeft, bottomRight, topRight, topLeft;
-            if (!FogManager.instance.FogData.GetCellCornerHeights(cellX, cellZ, out bottomLeft, out bottomRight, out topRight, out topLeft))
-            {
-                return TriangleGenerationType.Standard; // 如果获取失败，默认生成标准三角形
-            }
-            
-            // 统计解锁的角点数量（高度为0表示解锁）
-            int unlockedCorners = 0;
-            if (Mathf.Approximately(bottomLeft, 0f)) unlockedCorners++;
-            if (Mathf.Approximately(bottomRight, 0f)) unlockedCorners++;
-            if (Mathf.Approximately(topRight, 0f)) unlockedCorners++;
-            if (Mathf.Approximately(topLeft, 0f)) unlockedCorners++;
-            
-            // 根据解锁角点数量返回生成类型
-            if (unlockedCorners == 4)
-            {
-                return TriangleGenerationType.None; // 四个角点都解锁，不生成三角形
-            }
-            else if (unlockedCorners == 3)
-            {
-                return TriangleGenerationType.SingleTriangle; // 三个角点解锁，生成单个三角形
-            }
-            else
-            {
-                return TriangleGenerationType.Standard; // 其他情况生成标准三角形
-            }
+            return FogManager.instance.FogData.GetGridInfo(x, z) == FogManager.FOG_TYPE.Unlocked;
         }
         
-        /// <summary>
-        /// 生成单个三角形（当三个角点解锁，一个角点未解锁时）
-        /// </summary>
-        private static void GenerateSingleTriangle(int bottomLeft, int bottomRight, 
-            int topLeft, int topRight, int cellX, int cellZ, ref int triangleCount)
-        {
-            // 获取格子四个角点的高度，确定哪个角点未解锁
-            float blHeight, brHeight, trHeight, tlHeight;
-            if (!FogManager.instance.FogData.GetCellCornerHeights(cellX, cellZ, out blHeight, out brHeight, out trHeight, out tlHeight))
-            {
-                return;
-            }
-            
-            // 判断哪个角点未解锁（高度不为0）
-            bool blUnlocked = blHeight < 0.001f;
-            bool brUnlocked = brHeight < 0.001f;
-            bool trUnlocked = trHeight < 0.001f;
-            bool tlUnlocked = tlHeight < 0.001f;
-            
-            // 根据未解锁的角点生成相应的三角形（逆时针顺序）
-            if (!blUnlocked) // bottomLeft 未解锁
-            {
-                // 三角形：bottomLeft -> topLeft -> bottomRight
-                s_trianglesArray[triangleCount] = (ushort)bottomLeft;
-                triangleCount++;
-                s_trianglesArray[triangleCount] = (ushort)topLeft;
-                triangleCount++;
-                s_trianglesArray[triangleCount] = (ushort)bottomRight;
-                triangleCount++;
-            }
-            else if (!brUnlocked) // bottomRight 未解锁
-            {
-                // 三角形：bottomRight -> bottomLeft -> topRight
-                s_trianglesArray[triangleCount] = (ushort)bottomRight;
-                triangleCount++;
-                s_trianglesArray[triangleCount] = (ushort)bottomLeft;
-                triangleCount++;
-                s_trianglesArray[triangleCount] = (ushort)topRight;
-                triangleCount++;
-            }
-            else if (!trUnlocked) // topRight 未解锁
-            {
-                // 三角形：topRight -> topLeft -> bottomRight
-                s_trianglesArray[triangleCount] = (ushort)topLeft;
-                triangleCount++;
-                s_trianglesArray[triangleCount] = (ushort)topRight;
-                triangleCount++;
-                s_trianglesArray[triangleCount] = (ushort)bottomRight;
-                triangleCount++;
-            }
-            else if (!tlUnlocked) // topLeft 未解锁
-            {
-               
-                // 三角形：topLeft -> bottomLeft -> topRight
-                s_trianglesArray[triangleCount] = (ushort)bottomLeft;
-                triangleCount++;
-                s_trianglesArray[triangleCount] = (ushort)topLeft;
-                triangleCount++;
-                s_trianglesArray[triangleCount] = (ushort)topRight;
-                triangleCount++;
-            }
-        }
-        
-        /// <summary>
-        /// 生成标准的两个三角形（一个格子）
-        /// </summary>
-        private static void GenerateStandardTriangles(int bottomLeft, int bottomRight, 
-            int topLeft, int topRight, ref int triangleCount)
-        {
-            // 第一个三角形（逆时针：左下-左上-右下）
-            s_trianglesArray[triangleCount] = (ushort)bottomLeft;
-            triangleCount++;
-            s_trianglesArray[triangleCount] = (ushort)topLeft;
-            triangleCount++;
-            s_trianglesArray[triangleCount] = (ushort)bottomRight;
-            triangleCount++;
-            
-            // 第二个三角形（逆时针：左上-右上-右下）
-            s_trianglesArray[triangleCount] = (ushort)topLeft;
-            triangleCount++;
-            s_trianglesArray[triangleCount] = (ushort)topRight;
-            triangleCount++;
-            s_trianglesArray[triangleCount] = (ushort)bottomRight;
-            triangleCount++;
-            
-            
-        }
         
         /// <summary>
         /// 根据解锁状态获取顶点颜色

@@ -52,6 +52,9 @@ namespace FogSystem
 
         public static void InitSingleFogMeshGenerator(int meshSizeX, int meshSizeY)
         {
+            // 防止重复初始化导致 NativeArray 泄漏
+            if (s_vertexArray.IsCreated) Dispose();
+
             // 预估上限：假设全部都细分，顶点数是 (2N+1)*(2N+1)
             // 比如 30*30 的格子，细分后是 60*60 个顶点，约 3600
             s_estimateCapacity =  (meshSizeX * 2 + 1) * (meshSizeY * 2 + 1);
@@ -140,6 +143,7 @@ namespace FogSystem
                 new Vector3((startGridX + blockGridCountX / 2.0f)
                     , height / 2.0f, (startGridZ + blockGridCountZ / 2.0f)), 
                 new Vector3(blockGridCountX, height, blockGridCountZ));
+            mesh.UploadMeshData(true);
         }
         
         
@@ -160,9 +164,9 @@ namespace FogSystem
                     return; 
                 }
 
-                mesh.SetVertexBufferParams(s_estimateCapacity, s_positionLayout, s_uvLayout);
-                mesh.SetIndexBufferParams(s_estimateCapacity * 8, IndexFormat.UInt16);
-                mesh.subMeshCount = 1;
+                // mesh.SetVertexBufferParams(s_estimateCapacity, s_positionLayout, s_uvLayout);
+                // mesh.SetIndexBufferParams(s_estimateCapacity * 8, IndexFormat.UInt16);
+                // mesh.subMeshCount = 1;
                 mesh.bounds = new Bounds( 
                     new Vector3((startGridX + blockGridCountX / 2.0f)
                         , fogHeight / 2.0f, (startGridZ + blockGridCountZ / 2.0f)), 
@@ -252,25 +256,41 @@ namespace FogSystem
             }
             
             // 应用到mesh
-            // 1) 写顶点数据（按 stream）
-            mesh.SetVertexBufferData(s_vertexArray, 0, 0, currentVertexCount, stream:0,
-                MeshUpdateFlags.DontRecalculateBounds | MeshUpdateFlags.DontValidateIndices);
-            mesh.SetVertexBufferData(s_uvsArray, 0, 0, currentVertexCount, stream:1,
-                MeshUpdateFlags.DontRecalculateBounds | MeshUpdateFlags.DontValidateIndices);
-            // 2) 写索引数据
-            mesh.SetIndexBufferData(s_trianglesArray, 0, 0, currentTriangleCount,
-                MeshUpdateFlags.DontRecalculateBounds | MeshUpdateFlags.DontValidateIndices);
-            
-            var subDesc = new SubMeshDescriptor(indexStart: 0, indexCount: currentTriangleCount, topology: MeshTopology.Triangles)
+            if (currentVertexCount > 0)
             {
-                baseVertex = 0
-            };
-            // 先别加 DontRecalculateBounds，确认 OK 后再加优化 flag
-            mesh.SetSubMesh(0, subDesc);
+                // 按需重新分配Buffer大小，避免显存浪费
+                mesh.SetVertexBufferParams(currentVertexCount, s_positionLayout, s_uvLayout);
+                mesh.SetIndexBufferParams(currentTriangleCount, IndexFormat.UInt16);
+                mesh.subMeshCount = 1;
+
+                // 1) 写顶点数据（按 stream）
+                mesh.SetVertexBufferData(s_vertexArray, 0, 0, currentVertexCount, stream: 0,
+                    MeshUpdateFlags.DontRecalculateBounds | MeshUpdateFlags.DontValidateIndices);
+                mesh.SetVertexBufferData(s_uvsArray, 0, 0, currentVertexCount, stream: 1,
+                    MeshUpdateFlags.DontRecalculateBounds | MeshUpdateFlags.DontValidateIndices);
+                // 2) 写索引数据
+                mesh.SetIndexBufferData(s_trianglesArray, 0, 0, currentTriangleCount,
+                    MeshUpdateFlags.DontRecalculateBounds | MeshUpdateFlags.DontValidateIndices);
+
+                var subDesc = new SubMeshDescriptor(indexStart: 0, indexCount: currentTriangleCount, topology: MeshTopology.Triangles)
+                {
+                    baseVertex = 0
+                };
+                // 先别加 DontRecalculateBounds，确认 OK 后再加优化 flag
+                mesh.SetSubMesh(0, subDesc);
+            }
+            else
+            {
+                mesh.Clear();
+            }
+
             mesh.bounds = new Bounds( 
                 new Vector3((startGridX + blockGridCountX / 2.0f)
                     , fogHeight / 2.0f, (startGridZ + blockGridCountZ / 2.0f)), 
                 new Vector3(blockGridCountX, fogHeight, blockGridCountZ));
+            
+            // 释放 CPU 端内存拷贝 (System Memory)，避免双份内存
+            mesh.UploadMeshData(true);
 
         }
         

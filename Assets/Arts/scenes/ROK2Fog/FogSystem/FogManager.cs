@@ -43,8 +43,8 @@ public class FogManager : MonoBehaviourSingle<FogManager>
         if(FogData == null)FogData = new FogData();
         if(FogSystem == null)FogSystem = new FogSystem.FogSystem(MapWidth, MapHeight, GridCellSize, FogHeight, FogGoPositionZ, GlobalScale);
         FogData.Initialize(MapWidth, MapHeight, GridCellSize, FogHeight);
-        SingleFogMeshGenerator.InitSingleFogMeshGenerator((int)(MapWidth / GridCellSize)
-            , (int)(MapHeight/GridCellSize));
+        SingleFogMeshGenerator.InitSingleFogMeshGenerator((int)(25)
+            , (int)(25));
 
     }
 
@@ -55,14 +55,15 @@ public class FogManager : MonoBehaviourSingle<FogManager>
         //Update Quad Visibility Here
     }
     
-    private void OnDestroy()
+    public void OnDisable()
     {
-        Debug.LogWarning("迷雾系统销毁");
-        FogData = null;
-        if(FogSystem != null)FogSystem.Destroy();
-        FogSystem = null;
-        isInitialized = false;
-        SingleFogMeshGenerator.Dispose();
+        // 确保在禁用或AssemblyReload时清理资源，防止Mesh泄漏
+        ShutDownFogSystem();
+    }
+    
+    public void OnDestroy()
+    {
+        ShutDownFogSystem();
     }
     
     public void ShutDownFogSystem()
@@ -89,67 +90,49 @@ public class FogManager : MonoBehaviourSingle<FogManager>
             }
         }
     }
-    public void UpdateFogAreaInfo(int AreaID, bool unlockFog)
+
+    public void TryUnlockingArea(byte[] gridStatusBits)
     {
-        // 得到一个unlockArea, 403840384, 那么就是第四层， 384 384中心位置。
-        // 第四层格子长度在 private static int CalculateFogGridSizeByLayer(int layer)函数中计算
-        int centerX = AreaID % 10000;
-        int centerY = AreaID % 100000000 / 10000;
-        int layer = AreaID / 100000000;
-        int size = (int)Mathf.Pow(4, layer) / 2 * GridCellSize;
-        // Debug.Log("ReceivedID:" + centerX + " , " + centerY + " , " + layer + " , " + size);
-        FOG_TYPE type = unlockFog ? FOG_TYPE.Unlocked : FOG_TYPE.Locked;
-        if (unlockFog)
+        // 外部传入的是基于 MapWidth * MapHeight 的位数组
+        int mapW = MapWidth / GridCellSize;;
+        int mapH = MapHeight / GridCellSize;;
+        int totalCells = mapW * mapH;
+
+        if (gridStatusBits.Length < (totalCells + 7) / 8)
         {
-            for (int x = centerX - size; x < centerX + size; x++)
+            Debug.LogError($"Grid status array size too small! Expected bytes: {(totalCells + 7) / 8}, Actual: {gridStatusBits.Length}");
+            return;
+        }
+
+        bool hasChange = false;
+
+        for (int y = 0; y < mapH; y++)
+        {
+            for (int x = 0; x < mapW; x++)
             {
-                for (int y = centerY - size; y < centerY + size; y++)
+                int index = y * mapW + x;
+                int byteIndex = index / 8;
+                int bitIndex = index % 8;
+
+                // 检查对应位是否为1
+                bool isUnlocked = (gridStatusBits[byteIndex] & (1 << bitIndex)) != 0;
+
+                if (isUnlocked)
                 {
-                    if(y < 0 || y > MapHeight || x < 0 || x > MapWidth) continue;
-                    FogData.UnlockCell(x / GridCellSize, y / GridCellSize);
+                    
+                    if (FogData.UnlockCell(x, y))
+                    {
+                        // 每次解锁一个逻辑格子，就刷新该格子及其周围的一小块区域
+                        // 这种方式虽然调用次数多，但 InsertArea 内部有优化，且避免了全图刷新带来的逻辑错误
+                        FogSystem.InsertArea(new OptimizedFogQuad.BoundsAABB(
+                            new Vector2Int(x - 1, y - 1),
+                            new Vector2Int(x + 2, y + 2)
+                        ), (int)FOG_TYPE.Unlocked);
+                        
+                    }
                 }
             }
-            
-            FogSystem.InsertArea(new OptimizedFogQuad.BoundsAABB(new Vector2Int((int)(centerX - size) / GridCellSize - 1, (int)(centerY - size) / GridCellSize -1) ,
-                new Vector2Int((int)(centerX + size) / GridCellSize +1, (int)(centerY + size) / GridCellSize + 1)), (int)type);
         }
-        else
-        {
-            // todo
-        }
-    }
-
-    public void TryUnlockingArea(List<int> gridIDs)
-    {
-        List<Vector2Int> gridPoints = new List<Vector2Int>();
-        foreach (int gridID in gridIDs)
-        {
-            int centerX = gridID % 10000;
-            int centerY = gridID % 100000000 / 10000;
-            int layer = gridID / 100000000;
-            int size = (int)Mathf.Pow(4, layer) / 2 * GridCellSize;
-            if (size == 0)
-            {
-                int x = gridID % 10000 - (GridCellSize - 1) /2;
-                int y = gridID / 10000 - (GridCellSize - 1) /2;
-                gridPoints.Add(new Vector2Int(x / GridCellSize, y / GridCellSize));
-                FogData.SetCellUnlocking(x / GridCellSize, y / GridCellSize);
-            }
-            else
-            {
-                for (int x = centerX - size; x < centerX + size; x++)
-                {
-                    for (int y = centerY - size; y < centerY + size; y++)
-                    {
-                        gridPoints.Add(new Vector2Int(x / GridCellSize, y / GridCellSize));
-                        FogData.SetCellUnlocking(x / GridCellSize, y / GridCellSize);
-                    }
-                }  
-            }
-        }            
-
-        FogSystem.GenerateUnlockingAreaFogGo(gridPoints);
-        FogSystem.StartUnlockAreaFogGo();
     }
 
     // 用于取消迷雾解锁时的表现

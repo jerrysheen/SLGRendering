@@ -107,11 +107,12 @@ namespace FogSystem
 
         public void Destroy()
         {
-            if(_fogMaterial != null) Object.Destroy(_fogMaterial);
-            if(_fogBaseMaterial != null) Object.Destroy(_fogBaseMaterial);
+            //if(_fogMaterial != null) Object.Destroy(_fogMaterial);
+            //if(_fogBaseMaterial != null) Object.Destroy(_fogBaseMaterial);
             _fogMaterial = null;
             _fogBaseMaterial = null;
-
+            _tween?.Kill(); // <--- 添加这行，防止动画回调报错
+            _tween = null;
             if(_fogUnlockingMesh != null) Object.Destroy(_fogUnlockingMesh);
             if(_fogUnlockingGo != null) Object.Destroy(_fogUnlockingGo);
             if(_fogUnlockingBaseMaterial != null) Object.Destroy(_fogUnlockingBaseMaterial);

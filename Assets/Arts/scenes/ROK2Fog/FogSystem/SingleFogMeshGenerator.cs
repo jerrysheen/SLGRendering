@@ -435,15 +435,8 @@ namespace FogSystem
             int gridZ = globalSubZ >> 1;
             
             FogManager.FOG_TYPE info = FogManager.instance.FogData.GetGridInfo(gridX, gridZ);
-            bool isUnlockedVertex = (state == VertexFogState.Unlocked);
-
-            // 特殊情况修正：Locked 格子即便被拉低到 0 (理论上不应该，但作为防御)，也不能视为 Unlocked UV
-            if (info == FogManager.FOG_TYPE.Locked)
-            {
-                isUnlockedVertex = false;
-            }
-
-            s_uvsArray[newIndex] = GetVertexColor(isUnlockedVertex, info);
+            
+            s_uvsArray[newIndex] = GetVertexColor(state, info);
 
             // 记录缓存
             s_vertexIndexMap[mapIndex] = newIndex;
@@ -465,9 +458,25 @@ namespace FogSystem
             // === 情况 A: 中心点 (Odd, Odd) ===
             if (isHalfX && isHalfZ)
             {
-                // 对于中心点，只要不是 Unlocked 格子，就保持 Locked 高度
+                // 对于中心点，首先看自己是否解锁
                 var info = FogManager.instance.FogData.GetGridInfo(gridX, gridZ);
-                return (info == FogManager.FOG_TYPE.Unlocked) ? VertexFogState.Unlocked : VertexFogState.Locked;
+                if (info == FogManager.FOG_TYPE.Unlocked) return VertexFogState.Unlocked;
+
+                // 如果自己未解锁 (Locked)，检查周围 4 邻居
+                // 如果有 >= 2 个邻居解锁，说明自己处于"岸边"或"半岛"状态，中心点需要降低到 Half 以平滑过渡
+                int neighborUnlockedCount = 0;
+                if (IsGridUnlocked(gridX - 1, gridZ)) neighborUnlockedCount++; // Left
+                if (IsGridUnlocked(gridX + 1, gridZ)) neighborUnlockedCount++; // Right
+                if (IsGridUnlocked(gridX, gridZ - 1)) neighborUnlockedCount++; // Bottom
+                if (IsGridUnlocked(gridX, gridZ + 1)) neighborUnlockedCount++; // Top
+
+                if (neighborUnlockedCount >= 2)
+                {
+                    return VertexFogState.Half;
+                }
+
+                // 默认保持 Locked 高度
+                return VertexFogState.Locked;
             }
 
             // === 情况 B: 整数角点 (Even, Even) ===
@@ -524,27 +533,22 @@ namespace FogSystem
         /// 根据解锁状态获取顶点颜色
         /// x控制，与地面高度， y控制是否要高亮。
         /// </summary>
-        private static UV16 GetVertexColor(bool isUnlocked, FogManager.FOG_TYPE gridInfo)
+        private static UV16 GetVertexColor(VertexFogState state, FogManager.FOG_TYPE gridInfo)
         {
             if (gridInfo == FogManager.FOG_TYPE.Unlocking)
             {
-                if (isUnlocked)
-                {
-                    return new UV16(0, 1); // 已解锁: (0, 1)
-                }
-                else
-                {
-                    return new UV16(1, 1); // 未解锁: (1, 1)
-                }
+                // 只要不是 Locked，都视为已解锁 (或者可以给 0.5f 做过渡)
+                return new UV16(state == VertexFogState.Locked ? 1 : 0, 1);
             }
 
-            if (isUnlocked)
+            switch (state)
             {
-                return new UV16(0, 0); // 已解锁: (0, 1)
-            }
-            else
-            {
-                return new UV16(1, 0); // 未解锁: (1, 1)
+                case VertexFogState.Unlocked:
+                    return new UV16(0, 0); // 已解锁: 0
+                case VertexFogState.Half:
+                    return new UV16(0.5f, 0); // 半解锁: 0.5
+                default:
+                    return new UV16(1, 0); // 未解锁: 1
             }
         }
         

@@ -20,6 +20,8 @@ namespace FogSystem
         private  int dataGridCountZ;  // 数据格子数量Z（cell数量）
         private  int vertexCountX;    // 角点数量X（比格子数多1）
         private  int vertexCountZ;    // 角点数量Z（比格子数多1）
+
+        
         
         /// <summary>
         /// 初始化并生成所有地形角点数据

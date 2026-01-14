@@ -135,17 +135,15 @@ public class FogManager : MonoBehaviourSingle<FogManager>
         }
     }
 
-    // 用于取消迷雾解锁时的表现
-    // public void OnSuccessfullyUnlockFogArea()
-    // {
-    //     FogSystem.MarkAreaUnlockingSucceed(1.0f, 0.0f, 3.0f);
-    // }    
+    public int GetFogGridWidth()
+    {
+        return MapWidth / GridCellSize;
+    }
 
-    // 用于取消迷雾解锁时的表现
-    // public void OnCancelUnlocking()
-    // {
-    //     FogSystem.OnCancelUnlocking();
-    // }
+    public int GetFogGridHeight()
+    {
+        return MapHeight / GridCellSize;
+    }
 
     // 真正进行mesh重建工作。
     public void RebuildFogMesh()    

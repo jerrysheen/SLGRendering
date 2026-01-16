@@ -137,7 +137,7 @@ namespace FogManager
                 mesh.subMeshCount = 1;
                 mesh.bounds = new Bounds( 
                     new Vector3((startGridX + blockGridCountX / 2.0f)
-                    , height / 2.0f, (startGridZ + blockGridCountZ / 2.0f)), 
+                    , height / 2.0f, (startGridZ + blockGridCountZ / 2.0f)) + MeshOffset, 
                     new Vector3(blockGridCountX, height, blockGridCountZ));
             }
 
@@ -171,7 +171,7 @@ namespace FogManager
             
             var subDesc = new SubMeshDescriptor(indexStart: 0, indexCount: 6, topology: MeshTopology.Triangles) { baseVertex = 0 };
             mesh.SetSubMesh(0, subDesc);
-            mesh.bounds = new Bounds( new Vector3((startGridX + blockGridCountX / 2.0f) , height / 2.0f, (startGridZ + blockGridCountZ / 2.0f)),  new Vector3(blockGridCountX, height, blockGridCountZ));
+            mesh.bounds = new Bounds( new Vector3((startGridX + blockGridCountX / 2.0f) , height / 2.0f, (startGridZ + blockGridCountZ / 2.0f)) + MeshOffset,  new Vector3(blockGridCountX, height, blockGridCountZ));
         }
         
         /// <summary>
@@ -198,7 +198,7 @@ namespace FogManager
                 }
                 mesh.bounds = new Bounds( 
                     new Vector3((startGridX + blockGridCountX / 2.0f)
-                        , fogHeight / 2.0f, (startGridZ + blockGridCountZ / 2.0f)), 
+                        , fogHeight / 2.0f, (startGridZ + blockGridCountZ / 2.0f)) + MeshOffset, 
                     new Vector3(blockGridCountX, fogHeight, blockGridCountZ));
             }
 
@@ -295,7 +295,7 @@ namespace FogManager
 
             mesh.bounds = new Bounds( 
                 new Vector3((startGridX + blockGridCountX / 2.0f)
-                    , fogHeight / 2.0f, (startGridZ + blockGridCountZ / 2.0f)), 
+                    , fogHeight / 2.0f, (startGridZ + blockGridCountZ / 2.0f)) + MeshOffset, 
                 new Vector3(blockGridCountX, fogHeight, blockGridCountZ));
         }
 

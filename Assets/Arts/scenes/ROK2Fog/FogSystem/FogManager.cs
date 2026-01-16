@@ -134,15 +134,17 @@ namespace FogManager
             _fogTRS = Matrix4x4.TRS(new Vector3(-GlobalScale * GridCellSize, 0, -GlobalScale * GridCellSize),
                 Quaternion.identity, new Vector3(GlobalScale * GridCellSize, 1, GlobalScale * GridCellSize));
 
-            systemInitialized = true;
+            GenerateWorldCornerMesh();
+            RebuildFogMesh();
             _borderDirty = false;
+            systemInitialized = true;
         }
         
         private void LateUpdate()
         {
             if (!systemInitialized) return;
             if (_fogTopMaterial == null || _fogBaseMaterial == null) return;
-            GenerateWorldCornerMesh();
+            
             DrawBorderMeshes();
             for (int i = 0; i < _optimizedFogQuad.NodeCapacity; i++)
             {
@@ -154,6 +156,7 @@ namespace FogManager
             }
         }
         
+        // OnDisable可能有问题？，再想想
         private void OnDisable()
         {
             ShutDownFogManager();
@@ -261,16 +264,15 @@ namespace FogManager
         }
 
         // 真正进行mesh重建工作。
-        public void RebuildFogMesh()    
+        public void RebuildFogMesh()
         {
-            RebuildMesh();
+            RebuildMeshByQuadTree();
         }
-
         
         /// <summary>
         /// 对修改的坐标点进行标记。
         /// </summary>
-        public void InsertArea(OptimizedFogQuad.BoundsAABB aabb, int nodeType)
+        private void InsertArea(OptimizedFogQuad.BoundsAABB aabb, int nodeType)
         {
             _optimizedFogQuad.Insert(aabb, (byte)nodeType);
             if (aabb.MinXY.x <= 0 || aabb.MaxXY.x >= _logicalGridSize || 
@@ -280,16 +282,8 @@ namespace FogManager
             }
         }
 
-        /// <summary>
-        /// 只对标记为脏的mesh进行更新。
-        /// </summary>
-        public void RebuildMesh()
-        {
-            RebuildMeshByQuadTree();
-        }
-
         // 这个操作似乎可以做成异步。
-        public void RebuildMeshByQuadTree()
+        private void RebuildMeshByQuadTree()
         {
             // 边缘条带需要随内圈变化更新（解锁到边缘时不出现断裂）
             if (_borderDirty)
@@ -314,7 +308,7 @@ namespace FogManager
             }
         }
         
-        public void BuildQuadMesh(OptimizedFogQuad quad, int nodeIndex)
+        private void BuildQuadMesh(OptimizedFogQuad quad, int nodeIndex)
         {
             Debug.Log("Rebuild quad mesh:" + nodeIndex);
             Vector2Int min, max;

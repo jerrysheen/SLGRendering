@@ -208,15 +208,45 @@ public class FogTest : MonoBehaviour
         if (_FogManager == null) return;
 
         List<Vector2Int> gridList = new List<Vector2Int>();
-        for (int x = -UnlockTestRadius; x <= UnlockTestRadius; x++)
+        
+        // Random Walk Generation for Irregular Continuous Area
+        HashSet<Vector2Int> visited = new HashSet<Vector2Int>();
+        Vector2Int current = UnlockTestCenter;
+        visited.Add(current);
+        gridList.Add(current);
+
+        int steps = UnlockTestRadius * 10; // Number of steps based on radius
+        Vector2Int[] directions = new Vector2Int[] { Vector2Int.up, Vector2Int.down, Vector2Int.left, Vector2Int.right };
+
+        for (int i = 0; i < steps; i++)
         {
-            for (int y = -UnlockTestRadius; y <= UnlockTestRadius; y++)
+            Vector2Int dir = directions[UnityEngine.Random.Range(0, 4)];
+            current += dir;
+            
+            // Constrain roughly within radius distance to keep it somewhat centered
+            if (Vector2Int.Distance(current, UnlockTestCenter) > UnlockTestRadius * 2)
             {
-                gridList.Add(new Vector2Int(UnlockTestCenter.x + x, UnlockTestCenter.y + y));
+                current = UnlockTestCenter; // Reset to center if too far
+                continue;
+            }
+
+            if (visited.Add(current))
+            {
+                gridList.Add(current);
             }
         }
 
+        // 1. Generate visual effect object
         _FogManager.GenerateUnlockingAreaFogGo(gridList);
+        
+        // 2. Update logical grid data
+        foreach (var pos in gridList)
+        {
+            _FogManager.UpdateFogGridInfo(pos, true);
+        }
+        _FogManager.RebuildFogMesh(); // Rebuild mesh to reflect logical changes
+
+        // 3. Start the unlock animation
         _FogManager.StartUnlockAreaFogGo();
     }
 }

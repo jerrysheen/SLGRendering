@@ -3,8 +3,6 @@ using System.Collections.Generic;
 using System.Runtime.InteropServices;
 using System.Linq;
 using DG.Tweening;
-using ELEX.Resource;
-using UnityEditor;
 using UnityEngine;
 using Object = UnityEngine.Object;
 
@@ -13,6 +11,7 @@ namespace FogManager
     /// <summary>
     /// 简化的迷雾系统 - 专注于Mesh管理
     /// 负责mesh块的创建、显示/隐藏管理、视锥剔除等
+    /// Simplified Fog System - Focuses on Mesh Management
     /// </summary>
     public class FogManager : MonoBehaviour
     {
@@ -23,31 +22,37 @@ namespace FogManager
             Unlocked = 2,
             Unlocking = 3,
         }
-        [Header("地图宽度")]
+
+        [Header("Settings")]
+        [Tooltip("地图宽度 Map Width")]
         public int MapWidth = 1200;
-        [Header("地图高度")]
+        
+        [Tooltip("地图高度 Map Height")]
         public int MapHeight = 1200;
-        [Header("迷雾格大小")]
+        
+        [Tooltip("迷雾格大小 Grid Cell Size")]
         public int GridCellSize = 3;
-        // 生成的迷雾的mesh高低落差
-        [Header("迷雾高度")]
+        
+        [Tooltip("生成的迷雾的mesh高低落差 Fog Height")]
         public int FogHeight = 6;
-        // 生成的迷雾的GameObject Transform的起始偏移
-        [Header("迷雾起始位置偏移 (XYZ)")]
+        
+        [Tooltip("迷雾起始位置偏移 (XYZ) Fog Start Position")]
         public Vector3 FogStartPosition = new Vector3(0, 6, 0);
-        // 默认的缩放尺寸，1
-        [Header("地图缩放尺寸")]
+        
+        [Tooltip("地图缩放尺寸 Global Scale (default 1)")]
         public int GlobalScale = 1;
-        [Header("地图缩放尺寸")]
-        private int MarginSize = 160;
 
+        [Header("Materials")]
+        public Material FogBaseMaterial; // 地形材质
+        public Material FogTopMaterial;  // 地形材质
+
+        private const int MARGIN_SIZE = 160;
+        
+        // Runtime Data
         public FogData FogData { get; private set; }
+        private bool _systemInitialized = false;
 
-        public Material _fogBaseMaterial; // 地形材质
-        public Material _fogTopMaterial; // 地形材质
-        
-        private bool systemInitialized = false;
-        
+        // Unlocking Effect Objects
         private GameObject _fogUnlockingGo;
         private Mesh _fogUnlockingMesh;
         private Material _fogUnlockingBaseMaterial;
@@ -55,21 +60,26 @@ namespace FogManager
         private Color _fogBaseLayerColor;
         private Color _fogTopLayerColor;
         
-        // 地图边缘生成迷雾， 目前写死了， 1200 / 160，会扩大5倍
+        // World Corner Mesh
         private GameObject _worldCornerMeshGo;
         private Mesh _worldCornerMesh;
         
+        // QuadTree & Meshing
         private OptimizedFogQuad _optimizedFogQuad;
-        // Mesh 坐标系：比逻辑格子多一圈（+2），并整体平移 (-1,-1) 让 逻辑(0,0) 对齐 mesh(1,1)
-        private int _logicalGridSize;   // = MapWidth/GridCellSize
-        private int _meshGridSize;      // = _logicalGridSize + 2
-        // 4 条边缘补齐条带：需要参与“密集”三角化（Dense），才能随内圈解锁保持连续
-        private Mesh[] _borderMeshes;
         private Mesh[] _quadMeshes;
-        private Matrix4x4 _fogTRS;
+        private Mesh[] _borderMeshes; // 0:Bottom, 1:Top, 2:Left, 3:Right
         private bool _borderDirty = true;
         
+        // Coordinates & Transforms
+        private int _logicalGridSize;   // = MapWidth/GridCellSize
+        private int _meshGridSize;      // = _logicalGridSize + 2
+        private Matrix4x4 _fogTRS;
+        
+        // Generator
         private SingleFogMeshGenerator _meshGenerator;
+        private Tween _tween;
+
+        #region Unity Lifecycle
 
         private void Start()
         {
@@ -78,20 +88,52 @@ namespace FogManager
 
         private void OnEnable()
         {
-            if (systemInitialized)
+            if (_systemInitialized)
             {
                 if (_fogUnlockingGo != null) _fogUnlockingGo.SetActive(true);
                 if (_worldCornerMeshGo != null) _worldCornerMeshGo.SetActive(true);
             }
         }
+        
+        private void LateUpdate()
+        {
+            if (!_systemInitialized) return;
+            if (FogTopMaterial == null || FogBaseMaterial == null) return;
+            
+            DrawBorderMeshes();
+            
+            // Draw Quadtree Meshes
+            for (int i = 0; i < _optimizedFogQuad.NodeCapacity; i++)
+            {
+                if (_quadMeshes[i] != null)
+                {
+                    Graphics.DrawMesh(_quadMeshes[i], _fogTRS, FogBaseMaterial, 0);                
+                    Graphics.DrawMesh(_quadMeshes[i], _fogTRS, FogTopMaterial, 0);                
+                }
+            }
+        }
+        
+        private void OnDisable()
+        {
+             if (_fogUnlockingGo != null) _fogUnlockingGo.SetActive(false);
+             if (_worldCornerMeshGo != null) _worldCornerMeshGo.SetActive(false);
+        }
+
+        private void OnDestroy()
+        {
+            ShutDownFogManager();
+        }
+
+        #endregion
 
         /// <summary>
         /// 初始化系统
+        /// Initialize the Fog System
         /// </summary>
         private void InitializeSystem()
         {
-            if (systemInitialized) return;
-            Debug.LogWarning("迷雾系统初始化创建");
+            if (_systemInitialized) return;
+            Debug.Log("[FogManager] Initializing...");
             
             if(FogData == null) FogData = new FogData();
             FogData.Initialize(MapWidth, MapHeight, GridCellSize, FogHeight);
@@ -108,92 +150,69 @@ namespace FogManager
             _meshGenerator = new SingleFogMeshGenerator(FogData);
             _meshGenerator.MeshOffset = generatorOffset;
             
-            // Note: Keeping the hardcoded 25, 25 from original FogManager logic for now
+            // Note: Keeping the hardcoded 25, 25 from original logic.
+            // This relates to the leaf node size in the QuadTree strategy.
             _meshGenerator.InitBuffers(25, 25);
 
-            if (_fogBaseMaterial == null)
-            { 
-                Debug.LogError("FogBaseMaterial is null");
-            }
-            if (_fogBaseMaterial != null)
-            {
-                _fogBaseLayerColor = _fogBaseMaterial.GetColor("_FogColor");
-            }
+            if (FogBaseMaterial == null) Debug.LogError("FogBaseMaterial is null");
+            else _fogBaseLayerColor = FogBaseMaterial.GetColor("_FogColor");
             
-            if (_fogTopMaterial == null)
-            {
-                Debug.LogError("FogTopMaterial is null");
-            }
-            if (_fogTopMaterial != null)
-            {
-                _fogTopLayerColor = _fogTopMaterial.GetColor("_FogColor");
-            }
+            if (FogTopMaterial == null) Debug.LogError("FogTopMaterial is null");
+            else _fogTopLayerColor = FogTopMaterial.GetColor("_FogColor");
 
             _logicalGridSize = (int)(MapWidth / GridCellSize);
             _meshGridSize = _logicalGridSize + 2;
 
-            // 四叉树仍然以“逻辑网格”建树（400 可被 25 整除，且是 2 的幂分割），避免 402 导致的非整除问题。
-            // 渲染层通过 mesh(1,1) <-> logical(0,0) 的映射来补齐边缘连续性。
+            // Initialize QuadTree
+            // Using "Logical Grid" for tree structure.
+            // 400 grids divisible by 25 (leaf size), works well with quadtree subdivision.
             _optimizedFogQuad = new OptimizedFogQuad(_logicalGridSize, 25);
-            // node type: 1 lock, 2 unlock, 3 partial/need dense
+            
+            // Initialize root node: 1=Locked
             _optimizedFogQuad.Insert(new OptimizedFogQuad.BoundsAABB(new Vector2Int(0, 0), new Vector2Int(_logicalGridSize, _logicalGridSize)), 1);
 
             _quadMeshes = new Mesh[_optimizedFogQuad.NodeCapacity];
-            BuildBorderMeshes();
-            // 整体平移 (-1, -1) 个 cell，让逻辑(0,0) 对齐到 mesh(1,1)
             
-            _fogTRS = Matrix4x4.TRS(new Vector3(-GlobalScale * GridCellSize, 0, -GlobalScale * GridCellSize),
-                Quaternion.identity, new Vector3(GlobalScale * GridCellSize, 1, GlobalScale * GridCellSize));
+            BuildBorderMeshes();
+
+            // 整体平移 (-1, -1) 个 cell，让逻辑(0,0) 对齐到 mesh(1,1)
+            // Offset by (-1, -1) cells so Logical(0,0) aligns with Mesh(1,1)
+            _fogTRS = Matrix4x4.TRS(
+                new Vector3(-GlobalScale * GridCellSize, 0, -GlobalScale * GridCellSize),
+                Quaternion.identity, 
+                new Vector3(GlobalScale * GridCellSize, 1, GlobalScale * GridCellSize)
+            );
 
             GenerateWorldCornerMesh();
             RebuildFogMesh();
             _borderDirty = false;
-            systemInitialized = true;
-        }
-        
-        private void LateUpdate()
-        {
-            if (!systemInitialized) return;
-            if (_fogTopMaterial == null || _fogBaseMaterial == null) return;
-            
-            DrawBorderMeshes();
-            for (int i = 0; i < _optimizedFogQuad.NodeCapacity; i++)
-            {
-                if (_quadMeshes[i] != null)
-                {
-                    Graphics.DrawMesh(_quadMeshes[i], _fogTRS, _fogBaseMaterial,0);                
-                    Graphics.DrawMesh(_quadMeshes[i], _fogTRS, _fogTopMaterial,0);                
-                }
-            }
-        }
-        
-        private void OnDisable()
-        {
-             if (_fogUnlockingGo != null) _fogUnlockingGo.SetActive(false);
-             if (_worldCornerMeshGo != null) _worldCornerMeshGo.SetActive(false);
-        }
-
-        private void OnDestroy()
-        {
-            ShutDownFogManager();
+            _systemInitialized = true;
         }
 
         public void ShutDownFogManager()
         {
-            Debug.LogWarning("迷雾系统销毁");
+            Debug.Log("[FogManager] Shutting down...");
             
-            _fogTopMaterial = null;
-            _fogBaseMaterial = null;
+            FogTopMaterial = null;
+            FogBaseMaterial = null;
+            
             _tween?.Kill(); 
             _tween = null;
+
             if(_fogUnlockingMesh != null) Object.Destroy(_fogUnlockingMesh);
             if(_fogUnlockingGo != null) Object.Destroy(_fogUnlockingGo);
             if(_fogUnlockingBaseMaterial != null) Object.Destroy(_fogUnlockingBaseMaterial);
             if(_fogUnlockingTopMaterial != null) Object.Destroy(_fogUnlockingTopMaterial);
+            
             if(_worldCornerMesh != null) Object.Destroy(_worldCornerMesh);
             if(_worldCornerMeshGo != null) Object.Destroy(_worldCornerMeshGo);
 
-            _optimizedFogQuad = null;
+            if (_optimizedFogQuad != null)
+            {
+                _optimizedFogQuad.Destroy();
+                _optimizedFogQuad = null;
+            }
+
             if (_borderMeshes != null)
             {
                 for (int i = 0; i < _borderMeshes.Length; i++)
@@ -218,10 +237,11 @@ namespace FogManager
                 _meshGenerator.Dispose();
                 _meshGenerator = null;
             }
-            systemInitialized = false;
+            _systemInitialized = false;
         }
 
-        
+        #region Fog Updates & Meshing
+
         public void UpdateFogGridInfo(Vector2Int gridID, bool unlockFog)
         {
             FOG_TYPE type = unlockFog ? FOG_TYPE.Unlocked : FOG_TYPE.Locked;
@@ -230,12 +250,19 @@ namespace FogManager
                 if (FogData.UnlockCell(gridID.x, gridID.y))
                 {
                     // 稍微扩大脏的区域， 这样确保所有标记为lock的区域直接生成大面片就ok
-                    InsertArea(new OptimizedFogQuad.BoundsAABB(new Vector2Int(gridID.x - 1, gridID.y - 1),
-                        new Vector2Int(gridID.x + 2, gridID.y + 2)), (int)type);
+                    // Expand dirty area slightly to ensure boundary continuity
+                    InsertArea(new OptimizedFogQuad.BoundsAABB(
+                        new Vector2Int(gridID.x - 1, gridID.y - 1),
+                        new Vector2Int(gridID.x + 2, gridID.y + 2)), 
+                        (int)type);
                 }
             }
         }
 
+        /// <summary>
+        /// 批量解锁区域
+        /// Try unlocking area using a bitmask array
+        /// </summary>
         public void TryUnlockingArea(IntPtr gridStatusBits, int bitLength)
         {
             // 外部传入的是基于 MapWidth * MapHeight 的位数组
@@ -245,7 +272,7 @@ namespace FogManager
 
             if (bitLength != totalCells)
             {
-                Debug.LogError($"Grid status bits length mismatch! Expected bits: {totalCells}, Actual: {bitLength}");
+                Debug.LogError($"[FogManager] Grid status bits length mismatch! Expected bits: {totalCells}, Actual: {bitLength}");
                 return;
             }
 
@@ -257,7 +284,7 @@ namespace FogManager
                     int byteIndex = index / 8;
                     int bitIndex = index % 8;
 
-                    // 检查对应位是否为1
+                    // 检查对应位是否为1 (Check if bit is 1)
                     byte b = Marshal.ReadByte(gridStatusBits, byteIndex);
                     bool isUnlocked = (b & (1 << bitIndex)) != 0;
 
@@ -266,7 +293,7 @@ namespace FogManager
                         if (FogData.UnlockCell(x, y))
                         {
                             // 每次解锁一个逻辑格子，就刷新该格子及其周围的一小块区域
-                            // 这种方式虽然调用次数多，但 InsertArea 内部有优化，且避免了全图刷新带来的逻辑错误
+                            // InsertArea handles optimization internally
                             InsertArea(new OptimizedFogQuad.BoundsAABB(
                                 new Vector2Int(x - 1, y - 1),
                                 new Vector2Int(x + 2, y + 2)
@@ -277,7 +304,6 @@ namespace FogManager
             }
         }
 
-        // 真正进行mesh重建工作。
         public void RebuildFogMesh()
         {
             RebuildMeshByQuadTree();
@@ -285,10 +311,12 @@ namespace FogManager
         
         /// <summary>
         /// 对修改的坐标点进行标记。
+        /// Mark modified area in QuadTree
         /// </summary>
         private void InsertArea(OptimizedFogQuad.BoundsAABB aabb, int nodeType)
         {
             _optimizedFogQuad.Insert(aabb, (byte)nodeType);
+            // If area touches the border, mark border as dirty
             if (aabb.MinXY.x <= 0 || aabb.MaxXY.x >= _logicalGridSize || 
                 aabb.MinXY.y <= 0 || aabb.MaxXY.y >= _logicalGridSize)
             {
@@ -296,40 +324,44 @@ namespace FogManager
             }
         }
 
-        // 这个操作似乎可以做成异步。
         private void RebuildMeshByQuadTree()
         {
-            // 边缘条带需要随内圈变化更新（解锁到边缘时不出现断裂）
+            // Update border meshes if needed (to maintain continuity with inner fog)
             if (_borderDirty)
             {
                 BuildBorderMeshes();
                 _borderDirty = false;
             }
+            
             int cap = _optimizedFogQuad.NodeCapacity;
             for (int i = 0; i < cap; i++)
             {
+                // If node doesn't exist or is dirty but NOT a leaf (means it was subdivided), destroy old mesh
                 if (!_optimizedFogQuad.Exists(i) || (_optimizedFogQuad.IsDirty(i) && !_optimizedFogQuad.IsLeaf(i)))
                 {
                     if (_quadMeshes[i] != null)
                     {
-                        GameObject.Destroy(_quadMeshes[i]);
+                        Object.Destroy(_quadMeshes[i]);
                         _quadMeshes[i] = null;
                     }
                 }
+                
                 if (!_optimizedFogQuad.IsLeaf(i)) continue;
                 if (!_optimizedFogQuad.IsDirty(i)) continue;
+                
                 BuildQuadMesh(_optimizedFogQuad, i);
             }
         }
         
         private void BuildQuadMesh(OptimizedFogQuad quad, int nodeIndex)
         {
-            Debug.Log("Rebuild quad mesh:" + nodeIndex);
+            // Debug.Log("Rebuild quad mesh:" + nodeIndex);
             Vector2Int min, max;
             quad.GetNodeBounds(nodeIndex, out min, out max);
 
             int blockCountX = max.x - min.x;
             int blockCountY = max.y - min.y;
+            
             if (_quadMeshes[nodeIndex] == null)
             {
                 _quadMeshes[nodeIndex] = new Mesh();
@@ -338,51 +370,59 @@ namespace FogManager
 #endif
             }
 
-            if (_optimizedFogQuad.GetNodeType(nodeIndex) == (byte)FOG_TYPE.Unlocked)
+            byte type = _optimizedFogQuad.GetNodeType(nodeIndex);
+            
+            if (type == (byte)FOG_TYPE.Unlocked)
             {
-                return;
+                // Fully unlocked, empty mesh
+                _quadMeshes[nodeIndex].Clear(); 
             }
-            else if (_optimizedFogQuad.GetNodeType(nodeIndex) == (byte)FOG_TYPE.Locked)
+            else if (type == (byte)FOG_TYPE.Locked)
             {
-                // 四叉树在逻辑坐标中：logical(0,0) -> mesh(1,1)
+                // Fully locked, use Sparse mesh generation (optimized)
+                // Logical(0,0) -> Mesh(1,1)
                 _meshGenerator.GenerateSparseMeshBlock(_quadMeshes[nodeIndex], min.x + 1, min.y + 1, blockCountX, blockCountY, FogHeight);
             }
             else
             {
+                // Partially unlocked or other state, use Dense mesh generation
                 _meshGenerator.GenerateDenseMeshBlock(_quadMeshes[nodeIndex], min.x + 1, min.y + 1, blockCountX, blockCountY, FogHeight);
             }
             
             _optimizedFogQuad.MarkRebuilt(nodeIndex);
         }
 
+        #endregion
+
+        #region Unlocking Visuals
+
         /// <summary>
-        ///  生成一小块目标解锁区域，等待解锁，主要思路为采样附近的高度点，生成对应mesh
-        ///  使用这些区域还没解锁之前的高度数据，所以可以还原原来的mesh形状，随后高度进行塌陷
+        /// 生成一小块目标解锁区域，等待解锁
+        /// Generate a temporary mesh for the area being unlocked
         /// </summary>
         public void GenerateUnlockingAreaFogGo(List<Vector2Int> gridList)
         {
-            HashSet<Vector2Int> plateauVerts = new();
+            HashSet<Vector2Int> plateauVerts = new HashSet<Vector2Int>();
             foreach (var c in gridList)
             {
-                plateauVerts.UnionWith(new[]
-                {
-                    new Vector2Int(c.x, c.y),
-                    new Vector2Int(c.x - 1, c.y - 1),
-                    new Vector2Int(c.x - 1, c.y),
-                    new Vector2Int(c.x - 1, c.y + 1),
-                    new Vector2Int(c.x, c.y - 1),
-                    new Vector2Int(c.x, c.y + 1),
-                    new Vector2Int(c.x + 1, c.y - 1),
-                    new Vector2Int(c.x + 1, c.y),
-                    new Vector2Int(c.x + 1, c.y + 1)
-                });
+                // Collect 3x3 area around each cell to ensure smooth connections
+                plateauVerts.Add(new Vector2Int(c.x, c.y));
+                plateauVerts.Add(new Vector2Int(c.x - 1, c.y - 1));
+                plateauVerts.Add(new Vector2Int(c.x - 1, c.y));
+                plateauVerts.Add(new Vector2Int(c.x - 1, c.y + 1));
+                plateauVerts.Add(new Vector2Int(c.x, c.y - 1));
+                plateauVerts.Add(new Vector2Int(c.x, c.y + 1));
+                plateauVerts.Add(new Vector2Int(c.x + 1, c.y - 1));
+                plateauVerts.Add(new Vector2Int(c.x + 1, c.y));
+                plateauVerts.Add(new Vector2Int(c.x + 1, c.y + 1));
             }
-                        
 
             if (_fogUnlockingMesh == null)
             {
                 _fogUnlockingMesh = new Mesh();
             }
+            
+            // Shift to Mesh Coordinates (+1, +1)
             var shiftedVerts = plateauVerts.Select(v => new Vector2Int(v.x + 1, v.y + 1)).ToList();
             _meshGenerator.GenerateSeperateUnlockFogMesh(_fogUnlockingMesh, shiftedVerts, FogHeight);
 
@@ -391,27 +431,29 @@ namespace FogManager
                 _fogUnlockingGo = new GameObject("UnlockingAreaGO");
                 _fogUnlockingGo.transform.position = new Vector3(-GlobalScale * GridCellSize, 0, -GlobalScale * GridCellSize);
                 _fogUnlockingGo.transform.localScale = new Vector3(GlobalScale * GridCellSize, 1, GlobalScale * GridCellSize);
-                _fogUnlockingGo.AddComponent<MeshFilter>().sharedMesh = _fogUnlockingMesh;
-                _fogUnlockingGo.AddComponent<MeshRenderer>().materials = new []{_fogBaseMaterial, _fogTopMaterial};
-                _fogUnlockingBaseMaterial = _fogUnlockingGo.GetComponent<MeshRenderer>().materials[0];
-                _fogUnlockingTopMaterial = _fogUnlockingGo.GetComponent<MeshRenderer>().materials[1];
+                
+                var mf = _fogUnlockingGo.AddComponent<MeshFilter>();
+                mf.sharedMesh = _fogUnlockingMesh;
+                
+                var mr = _fogUnlockingGo.AddComponent<MeshRenderer>();
+                mr.materials = new []{FogBaseMaterial, FogTopMaterial};
+                
+                _fogUnlockingBaseMaterial = mr.materials[0];
+                _fogUnlockingTopMaterial = mr.materials[1];
             }
             else
             {
-                _fogUnlockingTopMaterial.SetColor("_FogColor", _fogTopLayerColor);      // 可选：同步到材质
-                _fogUnlockingBaseMaterial.SetColor("_FogColor", _fogBaseLayerColor);      // 可选：同步到材质
+                // Sync colors if materials were re-instantiated
+                _fogUnlockingTopMaterial.SetColor("_FogColor", _fogTopLayerColor);
+                _fogUnlockingBaseMaterial.SetColor("_FogColor", _fogBaseLayerColor);
                 _fogUnlockingGo.SetActive(true);
             }
-
         }
 
-
-        private Color _startColor;
-        private Color _endColor;
-        private Color _currentColor;
-        private Tween _tween;
-
-        // 迷雾表现，单块销毁渐隐
+        /// <summary>
+        /// 迷雾表现，单块销毁渐隐
+        /// Start the unlock animation (fade out)
+        /// </summary>
         public void StartUnlockAreaFogGo()
         {
             _tween?.Kill();   
@@ -420,13 +462,14 @@ namespace FogManager
             Color topLayerColor = _fogTopLayerColor;
             Color baseLayerColor = _fogBaseLayerColor;
             float currentAlpha = 1;
+            
             seq.Append(
                 DOTween.To(() => currentAlpha,
                         value => {
                             topLayerColor.a = value;
                             baseLayerColor.a = value;
                             _fogUnlockingTopMaterial.SetColor("_FogColor", topLayerColor);   
-                            _fogUnlockingBaseMaterial.SetColor("_FogColor", baseLayerColor);;
+                            _fogUnlockingBaseMaterial.SetColor("_FogColor", baseLayerColor);
                         },
                         0,
                         duration)
@@ -436,18 +479,20 @@ namespace FogManager
             _tween = seq; 
         }
 
+        #endregion
+
+        #region Border & World Corner
+
         /// <summary>
-        /// 生成 4 条边缘补齐条带（宽 1 格）。
-        /// 注意：这里必须用 Dense 方式生成三角形，否则边缘会因为“只是一整块锁定面”而在 0,0 解锁时断裂。
-        /// 条带网格使用 mesh 坐标：mesh(1,1) 对齐 logical(0,0)，mesh 外圈(0/401) 永远 Locked。
+        /// 生成 4 条边缘补齐条带
+        /// Build 4 border strips to cover the gap between logical grid and world mesh bounds
         /// </summary>
         private void BuildBorderMeshes()
         {
             if (_meshGridSize <= 0) return;
 
             _borderMeshes ??= new Mesh[4];
-
-            int borderThickness = 1; // 明确边缘宽度变量，消除魔法数字
+            int borderThickness = 1; 
 
             // 0: Bottom, 1: Top, 2: Left, 3: Right
             for (int i = 0; i < 4; i++)
@@ -465,13 +510,18 @@ namespace FogManager
                 }
             }
 
+            // Generate Dense Meshes for borders to support smooth transitions if edges are unlocked
+            
             // Bottom strip: z = 0, x: [0.._meshGridSize)
             _meshGenerator.GenerateDenseMeshBlock(_borderMeshes[0], 0, 0, _meshGridSize, borderThickness, FogHeight);
+            
             // Top strip: z = _meshGridSize - 1
             _meshGenerator.GenerateDenseMeshBlock(_borderMeshes[1], 0, _meshGridSize - borderThickness, _meshGridSize, borderThickness, FogHeight);
-            // Left strip: x = 0, z: [borderThickness.._meshGridSize - borderThickness) to avoid corner overlap
+            
+            // Left strip: x = 0, z: [borderThickness.._meshGridSize - borderThickness)
             _meshGenerator.GenerateDenseMeshBlock(_borderMeshes[2], 0, borderThickness, borderThickness, _meshGridSize - borderThickness * 2, FogHeight);
-            // Right strip: x = _meshGridSize - 1, z: [borderThickness.._meshGridSize - borderThickness) to avoid corner overlap
+            
+            // Right strip: x = _meshGridSize - 1, z: [borderThickness.._meshGridSize - borderThickness)
             _meshGenerator.GenerateDenseMeshBlock(_borderMeshes[3], _meshGridSize - borderThickness, borderThickness, borderThickness, _meshGridSize - borderThickness * 2, FogHeight);
         }
 
@@ -482,8 +532,8 @@ namespace FogManager
             {
                 var m = _borderMeshes[i];
                 if (m == null) continue;
-                Graphics.DrawMesh(m, _fogTRS, _fogBaseMaterial, 0);
-                Graphics.DrawMesh(m, _fogTRS, _fogTopMaterial, 0);
+                Graphics.DrawMesh(m, _fogTRS, FogBaseMaterial, 0);
+                Graphics.DrawMesh(m, _fogTRS, FogTopMaterial, 0);
             }
         }
 
@@ -497,40 +547,37 @@ namespace FogManager
                 
                 Vector3 alignOffset = new Vector3(-GlobalScale * GridCellSize, 0, -GlobalScale * GridCellSize);
                 _worldCornerMeshGo.transform.localPosition = alignOffset + FogStartPosition;
-                
-                // Correct scale to account for GlobalScale here
                 _worldCornerMeshGo.transform.localScale = new Vector3(GlobalScale, 1 , GlobalScale);
+                
                 _worldCornerMesh = new Mesh();
                 meshFilter.mesh = _worldCornerMesh;
-                meshRenderer.sharedMaterials = new []{_fogBaseMaterial, _fogTopMaterial };
+                meshRenderer.sharedMaterials = new []{FogBaseMaterial, FogTopMaterial };
                 _worldCornerMesh.Clear();
 
-                // Calculate total mesh width/height in meters (before GlobalScale)
-                // Logical Grid Size = MapWidth / GridCellSize
-                // Mesh Grid Size = Logical Grid Size + 2 (1 border on each side)
-                // Total Physical Width = Mesh Grid Size * GridCellSize = MapWidth + 2 * GridCellSize
                 float totalWidth = MapWidth + 2 * GridCellSize;
                 float totalHeight = MapHeight + 2 * GridCellSize;
 
+                // Create a skirt around the map
                 _worldCornerMesh.vertices = new Vector3[]
                 {
                     new Vector3(0.0f, FogHeight, 0.0f),
-                    new Vector3(0.0f, FogHeight, -MarginSize),
-                    new Vector3(totalWidth + MarginSize, FogHeight, -MarginSize),
-                    new Vector3(totalWidth + MarginSize, FogHeight, 0.0f),
+                    new Vector3(0.0f, FogHeight, -MARGIN_SIZE),
+                    new Vector3(totalWidth + MARGIN_SIZE, FogHeight, -MARGIN_SIZE),
+                    new Vector3(totalWidth + MARGIN_SIZE, FogHeight, 0.0f),
                     new Vector3(totalWidth, FogHeight, 0.0f),
-                    new Vector3(totalWidth + MarginSize, FogHeight, 0.0f),
-                    new Vector3(totalWidth, FogHeight, totalHeight + MarginSize),
-                    new Vector3(totalWidth + MarginSize, FogHeight, totalHeight + MarginSize),
-                    new Vector3(-MarginSize, FogHeight, totalHeight),
+                    new Vector3(totalWidth + MARGIN_SIZE, FogHeight, 0.0f),
+                    new Vector3(totalWidth, FogHeight, totalHeight + MARGIN_SIZE),
+                    new Vector3(totalWidth + MARGIN_SIZE, FogHeight, totalHeight + MARGIN_SIZE),
+                    new Vector3(-MARGIN_SIZE, FogHeight, totalHeight),
                     new Vector3(totalWidth, FogHeight, totalHeight),
-                    new Vector3(totalWidth, FogHeight, totalHeight + MarginSize),
-                    new Vector3(-MarginSize, FogHeight, totalHeight + MarginSize),
+                    new Vector3(totalWidth, FogHeight, totalHeight + MARGIN_SIZE),
+                    new Vector3(-MARGIN_SIZE, FogHeight, totalHeight + MARGIN_SIZE),
                     new Vector3(0.0f, FogHeight, totalHeight),
-                    new Vector3(-MarginSize, FogHeight, totalHeight),
-                    new Vector3(-MarginSize, FogHeight, -MarginSize),
-                    new Vector3(0.0f, FogHeight, -MarginSize),
+                    new Vector3(-MARGIN_SIZE, FogHeight, totalHeight),
+                    new Vector3(-MARGIN_SIZE, FogHeight, -MARGIN_SIZE),
+                    new Vector3(0.0f, FogHeight, -MARGIN_SIZE),
                 };
+                
                 _worldCornerMesh.triangles = new int[]
                 {
                     1, 0, 3,
@@ -542,29 +589,15 @@ namespace FogManager
                     12,14,13,
                     12,15,14
                 };
-                _worldCornerMesh.uv = new Vector2[]
-                {
-                    new Vector2(1, 1),
-                    new Vector2(1, 1),
-                    new Vector2(1, 1),
-                    new Vector2(1, 1),
-                    new Vector2(1, 1),
-                    new Vector2(1, 1),
-                    new Vector2(1, 1),
-                    new Vector2(1, 1),
-                    new Vector2(1, 1),
-                    new Vector2(1, 1),
-                    new Vector2(1, 1),
-                    new Vector2(1, 1),
-                    new Vector2(1, 1),
-                    new Vector2(1, 1),
-                    new Vector2(1, 1),
-                    new Vector2(1, 1)
-                };
+                
+                // UVs
+                Vector2 uvOne = new Vector2(1, 1);
+                _worldCornerMesh.uv = Enumerable.Repeat(uvOne, 16).ToArray();
+                
                 _worldCornerMesh.RecalculateNormals();
                 _worldCornerMesh.RecalculateBounds();
             }
         }
-
+        #endregion
     }
 }

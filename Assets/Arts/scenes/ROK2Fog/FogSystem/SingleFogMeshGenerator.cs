@@ -14,7 +14,7 @@ namespace FogManager
         SingleTriangle = 2
     }
 
-    public class SingleFogMeshGenerator
+    public class SingleFogMeshGenerator : IDisposable
     {
         private enum VertexFogState
         {
@@ -24,10 +24,10 @@ namespace FogManager
         }
 
         [StructLayout(LayoutKind.Sequential)]
-        struct UV16
+        readonly struct UV16
         {
-            public ushort u;
-            public ushort v;
+            public readonly ushort u;
+            public readonly ushort v;
             public UV16(float x, float y)
             {
                 u = Mathf.FloatToHalf(x);
@@ -45,9 +45,8 @@ namespace FogManager
         private int _estimateCapacity;
         private int[] _vertexIndexMap; 
         private int _mapWidth;
-        // private int s_mapHeight; // 暂时未用到
 
-        // 缓存当前处理的Block信息，避免传递过多参数
+        // Context variables for the current block generation
         private int _currentStartGridX;
         private int _currentStartGridZ;
         private float _currentFogHeight;
@@ -61,21 +60,19 @@ namespace FogManager
         public SingleFogMeshGenerator(FogData fogData)
         {
             CurrentFogData = fogData;
-            // Default initialization, can be resized later
         }
 
         public void InitBuffers(int meshSizeX, int meshSizeY)
         {
             if (_vertexArray.IsCreated) DisposeBuffers();
 
-            _estimateCapacity =  (meshSizeX * 2 + 1) * (meshSizeY * 2 + 1);
+            _estimateCapacity = (meshSizeX * 2 + 1) * (meshSizeY * 2 + 1);
             
             _vertexArray = new NativeArray<Vector3>(_estimateCapacity, Allocator.Persistent);
             _uvsArray = new NativeArray<UV16>(_estimateCapacity, Allocator.Persistent);
             _trianglesArray = new NativeArray<ushort>(_estimateCapacity * 8, Allocator.Persistent);
 
             _mapWidth = meshSizeX * 2 + 1;
-            // s_mapHeight = meshSizeY * 2 + 1;
             _vertexIndexMap = new int[_mapWidth * (meshSizeY * 2 + 1)];
 
             _positionLayout = new VertexAttributeDescriptor(VertexAttribute.Position, VertexAttributeFormat.Float32, 3, stream: 0);
@@ -96,17 +93,11 @@ namespace FogManager
             _vertexIndexMap = null;
         }
 
-        // ==========================================
-        // Init safety: allow generator to be used even if FogManager.InitSingleFogMeshGenerator()
-        // has not been called yet (e.g. FogManager builds border meshes during construction).
-        // ==========================================
         private void EnsureInitializedForSparse()
         {
-            // Sparse only needs vertex layouts + small temp buffers (4 verts / 6 indices),
-            // so a minimal init is enough.
             if (_estimateCapacity <= 0 || !_vertexArray.IsCreated)
             {
-                InitBuffers(1, 1); // => capacity 9
+                InitBuffers(1, 1);
             }
         }
 
@@ -124,20 +115,17 @@ namespace FogManager
             int requiredCapacity = (needX * 2 + 1) * (needZ * 2 + 1);
             if (requiredCapacity > _estimateCapacity)
             {
-                // Re-init to a larger buffer if we ever encounter a larger block than the initial estimate.
                 InitBuffers(needX, needZ);
             }
         }
 
-
-        // GenerateSparseMeshBlock 保持不变，省略...
+        /// <summary>
+        /// Generates a simple 2-triangle quad for a fully locked block.
+        /// </summary>
         public void GenerateSparseMeshBlock(Mesh mesh, int startGridX, int startGridZ, int blockGridCountX, int blockGridCountZ, float height)
         {
-            // Ensure static buffers/layouts are initialized (border meshes may call this before any other generator).
-            if (_vertexIndexMap == null)
-                EnsureInitializedForSparse();
-             // 为了节省篇幅这里不重复粘贴，该函数逻辑简单不涉及大量剔除
-             // 如果你需要这里也剔除，逻辑同下
+            if (_vertexIndexMap == null) EnsureInitializedForSparse();
+
              if (GetMeshGeneratedState(mesh) == MeshState.Uninitialized)
             {
                 mesh.Clear();
@@ -152,29 +140,29 @@ namespace FogManager
                     new Vector3(blockGridCountX, height, blockGridCountZ));
             }
 
-            int startX, startZ;
-            int endX, endZ;
-            startX = startGridX;
-            startZ = startGridZ;
-            endX = (startGridX + blockGridCountX);
-            endZ = (startGridZ + blockGridCountZ);
+            int startX = startGridX;
+            int startZ = startGridZ;
+            int endX = (startGridX + blockGridCountX);
+            int endZ = (startGridZ + blockGridCountZ);
 
             _vertexArray[0] = new Vector3(startX, height, startZ) + MeshOffset;
             _vertexArray[1] = new Vector3(endX, height, startZ) + MeshOffset;
             _vertexArray[2] = new Vector3(startX, height, endZ) + MeshOffset;
             _vertexArray[3] = new Vector3(endX, height, endZ) + MeshOffset;
 
-            _uvsArray[0] = new UV16(1, 1);
-            _uvsArray[1] = new UV16(1, 1);
-            _uvsArray[2] = new UV16(1, 1);
-            _uvsArray[3] = new UV16(1, 1);
+            // Fully locked color (u=1)
+            var lockedUV = new UV16(1, 1);
+            _uvsArray[0] = lockedUV;
+            _uvsArray[1] = lockedUV;
+            _uvsArray[2] = lockedUV;
+            _uvsArray[3] = lockedUV;
 
-            _trianglesArray[0] = (ushort)0;
-            _trianglesArray[1] = (ushort)2;
-            _trianglesArray[2] = (ushort)1;
-            _trianglesArray[3] = (ushort)1;
-            _trianglesArray[4] = (ushort)2;
-            _trianglesArray[5] = (ushort)3; 
+            _trianglesArray[0] = 0;
+            _trianglesArray[1] = 2;
+            _trianglesArray[2] = 1;
+            _trianglesArray[3] = 1;
+            _trianglesArray[4] = 2;
+            _trianglesArray[5] = 3; 
             
             mesh.SetVertexBufferData(_vertexArray, 0, 0, 4, stream:0, MeshUpdateFlags.DontRecalculateBounds | MeshUpdateFlags.DontValidateIndices);
             mesh.SetVertexBufferData(_uvsArray, 0, 0, 4, stream:1, MeshUpdateFlags.DontRecalculateBounds | MeshUpdateFlags.DontValidateIndices);
@@ -187,17 +175,17 @@ namespace FogManager
         
         /// <summary>
         /// 生成单个mesh块的数据 (支持混合分辨率 1x1 和 2x2)
+        /// Generates detailed mesh data with subdivision support.
         /// </summary>
         public void GenerateDenseMeshBlock(Mesh mesh, int startGridX, int startGridZ, 
             int blockGridCountX, int blockGridCountZ, float fogHeight)
         {
-            
             EnsureInitializedForDense(blockGridCountX, blockGridCountZ);
-// 设置静态上下文，供后续方法使用
+            
             _currentStartGridX = startGridX;
             _currentStartGridZ = startGridZ;
             _currentFogHeight = fogHeight;
-            _currentVertexCount = 0; // 重置计数
+            _currentVertexCount = 0;
 
             if (GetMeshGeneratedState(mesh) != MeshState.Dense)
             {
@@ -215,7 +203,6 @@ namespace FogManager
 
             int currentTriangleCount = 0;
             
-            // 重置映射表
             int mapW = blockGridCountX * 2 + 1;
             int mapH = blockGridCountZ * 2 + 1;
             _mapWidth = mapW;
@@ -224,10 +211,10 @@ namespace FogManager
             if (_vertexIndexMap == null || _vertexIndexMap.Length < mapSize) 
                 _vertexIndexMap = new int[mapSize];
                 
-            // 使用 Array.Fill 会更快 (如果Unity版本支持)，这里保持循环
+            // Reset index map
             for(int i=0; i<mapSize; i++) _vertexIndexMap[i] = -1;
 
-            // 逐格子遍历
+            // Iterate through each grid cell in the block
             for (int localZ = 0; localZ < blockGridCountZ; localZ++)
             {
                 for (int localX = 0; localX < blockGridCountX; localX++)
@@ -236,53 +223,45 @@ namespace FogManager
 
                     if (!needSubdivision)
                     {
-                        // === 模式 A: 1x1 标准格子 ===
+                        // === Mode A: 1x1 Standard Grid ===
                         int subX = localX * 2;
                         int subZ = localZ * 2;
                         
-                        // 注意：这里不再获取 int vBL，而是传递 subX, subZ 坐标
-                        // 1x1 格子由四个角点组成
                         TryAddTriangle(subX, subZ, subX, subZ + 2, subX + 2, subZ, ref currentTriangleCount); // BL -> TL -> BR
                         TryAddTriangle(subX, subZ + 2, subX + 2, subZ + 2, subX + 2, subZ, ref currentTriangleCount); // TL -> TR -> BR
                     }
                     else
                     {
-                        // === 模式 B: 2x2 细分格子 ===
+                        // === Mode B: 2x2 Subdivided Grid ===
                         int subX = localX * 2;
                         int subZ = localZ * 2;
 
-                        // 定义9个点的局部坐标偏移
-                        // 角点
-                        // BL(0,0), BR(2,0), TL(0,2), TR(2,2)
-                        // 中点
-                        // B_Mid(1,0), T_Mid(1,2), L_Mid(0,1), R_Mid(2,1), Center(1,1)
+                        // Corners: BL(0,0), BR(2,0), TL(0,2), TR(2,2)
+                        // Mids: B_Mid(1,0), T_Mid(1,2), L_Mid(0,1), R_Mid(2,1), Center(1,1)
 
-                        // 1. 左下角 (BL -> L_Mid -> B_Mid)
+                        // 1. Bottom Left
                         TryAddTriangle(subX, subZ, subX, subZ + 1, subX + 1, subZ, ref currentTriangleCount);
-                        // 2. 右下角 (BR -> B_Mid -> R_Mid) -> 注意顺序 BR(2,0) -> B_Mid(1,0) -> R_Mid(2,1)
+                        // 2. Bottom Right
                         TryAddTriangle(subX + 2, subZ, subX + 1, subZ, subX + 2, subZ + 1, ref currentTriangleCount);
-                        // 3. 左上角 (TL -> T_Mid -> L_Mid) -> TL(0,2) -> T_Mid(1,2) -> L_Mid(0,1)
+                        // 3. Top Left
                         TryAddTriangle(subX, subZ + 2, subX + 1, subZ + 2, subX, subZ + 1, ref currentTriangleCount);
-                        // 4. 右上角 (TR -> R_Mid -> T_Mid) -> TR(2,2) -> R_Mid(2,1) -> T_Mid(1,2)
+                        // 4. Top Right
                         TryAddTriangle(subX + 2, subZ + 2, subX + 2, subZ + 1, subX + 1, subZ + 2, ref currentTriangleCount);
 
-                        // 中心四个三角形
-                        // Center(1,1)
-                        // 下方: Center -> B_Mid -> L_Mid (错误? 应该是 Center -> R_Mid(x) -> B_Mid )
-                        // 按照你原始代码顺时针：
-                        // 下: Center(1,1) -> B_Mid(1,0) -> L_Mid(0,1) 
+                        // Center Triangles
+                        // Down: Center -> B_Mid -> L_Mid
                         TryAddTriangle(subX + 1, subZ + 1, subX + 1, subZ, subX, subZ + 1, ref currentTriangleCount);
-                        // 右: Center -> R_Mid(2,1) -> B_Mid(1,0)
+                        // Right: Center -> R_Mid -> B_Mid
                         TryAddTriangle(subX + 1, subZ + 1, subX + 2, subZ + 1, subX + 1, subZ, ref currentTriangleCount);
-                        // 上: Center -> T_Mid(1,2) -> R_Mid(2,1)
+                        // Up: Center -> T_Mid -> R_Mid
                         TryAddTriangle(subX + 1, subZ + 1, subX + 1, subZ + 2, subX + 2, subZ + 1, ref currentTriangleCount);
-                        // 左: Center -> L_Mid(0,1) -> T_Mid(1,2)
+                        // Left: Center -> L_Mid -> T_Mid
                         TryAddTriangle(subX + 1, subZ + 1, subX, subZ + 1, subX + 1, subZ + 2, ref currentTriangleCount);
                     }
                 }
             }
             
-            // 应用到mesh
+            // Apply to mesh
             if (_currentVertexCount > 0)
             {
                 mesh.SetVertexBufferParams(_currentVertexCount, _positionLayout, _uvLayout);
@@ -311,44 +290,35 @@ namespace FogManager
         }
 
         // ==========================================
-        // 核心修改：惰性创建与剔除逻辑
+        // Core Logic: Lazy Creation & Culling
         // ==========================================
 
-        /// <summary>
-        /// 尝试添加一个三角形。
-        /// 1. 先计算3个点的高度。
-        /// 2. 如果高度都极低（解锁），则直接返回（剔除）。
-        /// 3. 如果有效，才真正去创建/获取顶点索引，并写入 IndexBuffer。
-        /// </summary>
         private void TryAddTriangle(int subX1, int subZ1, int subX2, int subZ2, int subX3, int subZ3, ref int triCount)
         {
-            // 1. 预计算高度 (不创建顶点)
+            // 1. Pre-calculate heights (no allocation)
             float h1 = GetProjectedHeight(subX1, subZ1);
             float h2 = GetProjectedHeight(subX2, subZ2);
-            float h3 = GetProjectedHeight(subX3, subZ3); // 注意：这里你原本参数可能有笔误，确保 xyz 对应正确
-            // 修正参数传递：
-            h3 = GetProjectedHeight(subX3, subZ3);
+            float h3 = GetProjectedHeight(subX3, subZ3);
 
-            // 2. 剔除检测
+            // 2. Culling
             const float CULL_THRESHOLD = 0.01f;
-            // 如果三个点都在地面（已解锁），则不生成三角形
+            // If all 3 vertices are on the ground (unlocked), skip this triangle
             if (h1 < CULL_THRESHOLD && h2 < CULL_THRESHOLD && h3 < CULL_THRESHOLD)
             {
                 return;
             }
 
-            // 3. 真正创建/获取顶点索引
+            // 3. Create/Get vertices
             int v1 = GetOrCreateVertexLazy(subX1, subZ1);
             int v2 = GetOrCreateVertexLazy(subX2, subZ2);
             int v3 = GetOrCreateVertexLazy(subX3, subZ3);
 
-            // 4. 写入三角形索引
+            // 4. Write indices
             _trianglesArray[triCount++] = (ushort)v1;
             _trianglesArray[triCount++] = (ushort)v2;
             _trianglesArray[triCount++] = (ushort)v3;
         }
 
-        // 纯计算，不产生副作用
         private float GetProjectedHeight(int localSubX, int localSubZ)
         {
             int globalSubX = _currentStartGridX * 2 + localSubX;
@@ -364,18 +334,15 @@ namespace FogManager
             }
         }
 
-        // 真正的顶点创建逻辑 (Lazy)
         private int GetOrCreateVertexLazy(int localSubX, int localSubZ)
         {
             int mapIndex = localSubZ * _mapWidth + localSubX;
             
-            // 如果已经创建过，直接返回
             if (_vertexIndexMap[mapIndex] != -1)
             {
                 return _vertexIndexMap[mapIndex];
             }
 
-            // --- 创建新顶点逻辑 ---
             int globalSubX = _currentStartGridX * 2 + localSubX;
             int globalSubZ = _currentStartGridZ * 2 + localSubZ;
 
@@ -393,14 +360,13 @@ namespace FogManager
             float worldZ = globalSubZ * 0.5f;
             
             int newIndex = _currentVertexCount;
-            _currentVertexCount++; // 只有这里才增加计数
+            _currentVertexCount++;
             
             _vertexArray[newIndex] = new Vector3(worldX, h, worldZ) + MeshOffset;
             
             int gridX = globalSubX >> 1;
             int gridZ = globalSubZ >> 1;
             
-            // Use the instance CurrentFogData instead of FogManager.instance
             FogManager.FOG_TYPE info = FogManager.FOG_TYPE.Locked;
             if (CurrentFogData != null)
             {
@@ -413,41 +379,46 @@ namespace FogManager
             return newIndex;
         }
 
-        // ... CalculateVertexState, IsGridUnlocked, GetVertexColor 等辅助函数保持不变 ...
-        // 记得要把它们复制过来或者保持在类里
-        
-        // 核心算法：完全移除浮点运算，基于整数坐标计算顶点状态 (保持不变)
         private VertexFogState CalculateVertexState(int gx, int gz)
         {
-            // ... (同你原本代码) ...
+            // Even: integer coordinate; Odd: half coordinate
             bool isHalfX = (gx & 1) != 0; 
             bool isHalfZ = (gz & 1) != 0;
             int gridX = gx >> 1;
             int gridZ = gz >> 1;
+
             if (isHalfX && isHalfZ) {
-                // Use static reference
+                // Center point of a grid cell
                 var info = FogManager.FOG_TYPE.Locked;
                 if (CurrentFogData != null) info = CurrentFogData.GetGridInfoMesh(gridX, gridZ);
 
                 if (info == FogManager.FOG_TYPE.Unlocked) return VertexFogState.Unlocked;
+                
                 int neighborUnlockedCount = 0;
                 if (IsGridUnlocked(gridX - 1, gridZ)) neighborUnlockedCount++;
                 if (IsGridUnlocked(gridX + 1, gridZ)) neighborUnlockedCount++;
                 if (IsGridUnlocked(gridX, gridZ - 1)) neighborUnlockedCount++;
                 if (IsGridUnlocked(gridX, gridZ + 1)) neighborUnlockedCount++;
+                
+                // If 2+ neighbors are unlocked, this center point drops to half height
                 if (neighborUnlockedCount >= 2) return VertexFogState.Half;
                 return VertexFogState.Locked;
             }
+            
             if (!isHalfX && !isHalfZ) {
+                // Corner point
                 int unlockedCount = 0;
                 if (IsGridUnlocked(gridX - 1, gridZ - 1)) unlockedCount++;
                 if (IsGridUnlocked(gridX,     gridZ - 1)) unlockedCount++;
                 if (IsGridUnlocked(gridX - 1, gridZ))     unlockedCount++;
                 if (IsGridUnlocked(gridX,     gridZ))     unlockedCount++;
+                
                 if (unlockedCount == 0) return VertexFogState.Locked;
                 if (unlockedCount == 1) return VertexFogState.Half;
                 return VertexFogState.Unlocked;
             }
+            
+            // Edge point (one half, one integer)
             int side1X, side1Z, side2X, side2Z;
             if (isHalfX) {
                 side1X = gridX; side1Z = gridZ;
@@ -474,11 +445,13 @@ namespace FogManager
             }
         }
         
-        // ... CheckIfNeedSubdivision 保持不变 ...
         private bool CheckIfNeedSubdivision(int startGridX, int startGridZ, int localX, int localZ)
         {
              int globalSubX = (startGridX + localX) * 2;
              int globalSubZ = (startGridZ + localZ) * 2;
+             
+             // If any of the 4 corners or 5 subdivision points have different states, we need subdivision.
+             // Simplified check: check 4 corners and maybe center.
              if (CalculateVertexState(globalSubX, globalSubZ) != VertexFogState.Locked) return true;
              if (CalculateVertexState(globalSubX + 2, globalSubZ) != VertexFogState.Locked) return true;
              if (CalculateVertexState(globalSubX, globalSubZ + 2) != VertexFogState.Locked) return true;
@@ -486,12 +459,17 @@ namespace FogManager
              return false;
         }
 
-        public void GenerateSeperateUnlockFogMesh(Mesh mesh, List<Vector2Int> gridList,float _fogHeight)
+        public void GenerateSeperateUnlockFogMesh(Mesh mesh, List<Vector2Int> gridList, float _fogHeight)
         {
-             // 保持不变
              int minX = int.MaxValue, minY = int.MaxValue, maxX = int.MinValue, maxY = int.MinValue;
-             foreach (var c in gridList) { minX = Mathf.Min(minX, c.x); minY = Mathf.Min(minY, c.y); maxX = Mathf.Max(maxX, c.x); maxY = Mathf.Max(maxY, c.y); }
-             int W = maxX - minX + 1; int H = maxY - minY + 1;
+             foreach (var c in gridList) { 
+                 minX = Mathf.Min(minX, c.x); 
+                 minY = Mathf.Min(minY, c.y); 
+                 maxX = Mathf.Max(maxX, c.x); 
+                 maxY = Mathf.Max(maxY, c.y); 
+             }
+             int W = maxX - minX + 1; 
+             int H = maxY - minY + 1;
              GenerateDenseMeshBlock(mesh, minX, minY, W, H, _fogHeight);
         }
 

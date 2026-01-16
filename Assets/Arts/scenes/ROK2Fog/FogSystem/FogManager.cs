@@ -31,9 +31,9 @@ namespace FogManager
         // 生成的迷雾的mesh高低落差
         [Header("迷雾高度")]
         public int FogHeight = 6;
-        // 生成的迷雾的GameObject Transform的z
-        [Header("迷雾GameObject Transform的z")]
-        public int FogGoPositionZ = 6;
+        // 生成的迷雾的GameObject Transform的起始偏移
+        [Header("迷雾起始位置偏移 (XYZ)")]
+        public Vector3 FogStartPosition = new Vector3(0, 6, 0);
         // 默认的缩放尺寸，1
         public int GlobalScale = 1;
 
@@ -86,6 +86,15 @@ namespace FogManager
             // Set static reference for the generator
             SingleFogMeshGenerator.CurrentFogData = FogData;
 
+            // Calculate generator offset (inverse scale for X/Z)
+            float scaleXZ = GlobalScale * GridCellSize;
+            Vector3 generatorOffset = new Vector3(
+                scaleXZ > 0 ? FogStartPosition.x / scaleXZ : 0,
+                FogStartPosition.y, 
+                scaleXZ > 0 ? FogStartPosition.z / scaleXZ : 0
+            );
+            SingleFogMeshGenerator.MeshOffset = generatorOffset;
+
             // Note: Keeping the hardcoded 25, 25 from original FogManager logic for now
             SingleFogMeshGenerator.InitSingleFogMeshGenerator(25, 25);
 
@@ -120,7 +129,7 @@ namespace FogManager
             BuildBorderMeshes();
             // 整体平移 (-1, -1) 个 cell，让逻辑(0,0) 对齐到 mesh(1,1)
             
-            _fogTRS = Matrix4x4.TRS(new Vector3(-GlobalScale * GridCellSize, FogGoPositionZ, -GlobalScale * GridCellSize),
+            _fogTRS = Matrix4x4.TRS(new Vector3(-GlobalScale * GridCellSize, 0, -GlobalScale * GridCellSize),
                 Quaternion.identity, new Vector3(GlobalScale * GridCellSize, 1, GlobalScale * GridCellSize));
 
             systemInitialized = true;
@@ -359,7 +368,7 @@ namespace FogManager
             if (_fogUnlockingGo == null)
             {
                 _fogUnlockingGo = new GameObject("UnlockingAreaGO");
-                _fogUnlockingGo.transform.position = new Vector3(-GlobalScale * GridCellSize, FogGoPositionZ, -GlobalScale * GridCellSize);
+                _fogUnlockingGo.transform.position = new Vector3(-GlobalScale * GridCellSize, 0, -GlobalScale * GridCellSize);
                 _fogUnlockingGo.transform.localScale = new Vector3(GlobalScale * GridCellSize, 1, GlobalScale * GridCellSize);
                 _fogUnlockingGo.AddComponent<MeshFilter>().sharedMesh = _fogUnlockingMesh;
                 _fogUnlockingGo.AddComponent<MeshRenderer>().materials = new []{_fogBaseMaterial, _fogTopMaterial};
@@ -464,7 +473,10 @@ namespace FogManager
                 _worldCornerMeshGo = new GameObject("WorldCornerMesh");
                 MeshFilter meshFilter = _worldCornerMeshGo.AddComponent<MeshFilter>();
                 MeshRenderer meshRenderer = _worldCornerMeshGo.AddComponent<MeshRenderer>();
-                _worldCornerMeshGo.transform.localPosition = new Vector3(-GlobalScale * GridCellSize, FogGoPositionZ, -GlobalScale * GridCellSize);
+                
+                Vector3 alignOffset = new Vector3(-GlobalScale * GridCellSize, 0, -GlobalScale * GridCellSize);
+                _worldCornerMeshGo.transform.localPosition = alignOffset + FogStartPosition;
+                
                 // Correct scale to account for GlobalScale here
                 _worldCornerMeshGo.transform.localScale = new Vector3(GlobalScale, 1 , GlobalScale);
                 _worldCornerMesh = new Mesh();

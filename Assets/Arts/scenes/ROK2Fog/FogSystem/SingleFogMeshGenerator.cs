@@ -56,6 +56,8 @@ namespace FogManager
         // Static reference to FogData to replace singleton access
         public static FogData CurrentFogData;
 
+        public static Vector3 MeshOffset = Vector3.zero;
+
         public static void InitSingleFogMeshGenerator(int meshSizeX, int meshSizeY)
         {
             if (s_vertexArray.IsCreated) Dispose();
@@ -147,10 +149,10 @@ private static void EnsureInitializedForDense(int blockGridCountX, int blockGrid
             endX = (startGridX + blockGridCountX);
             endZ = (startGridZ + blockGridCountZ);
 
-            s_vertexArray[0] = new Vector3(startX, height, startZ);
-            s_vertexArray[1] = new Vector3(endX, height, startZ);
-            s_vertexArray[2] = new Vector3(startX, height, endZ);
-            s_vertexArray[3] = new Vector3(endX, height, endZ);
+            s_vertexArray[0] = new Vector3(startX, height, startZ) + MeshOffset;
+            s_vertexArray[1] = new Vector3(endX, height, startZ) + MeshOffset;
+            s_vertexArray[2] = new Vector3(startX, height, endZ) + MeshOffset;
+            s_vertexArray[3] = new Vector3(endX, height, endZ) + MeshOffset;
 
             s_uvsArray[0] = new UV16(1, 1);
             s_uvsArray[1] = new UV16(1, 1);
@@ -383,7 +385,7 @@ private static void EnsureInitializedForDense(int blockGridCountX, int blockGrid
             int newIndex = s_currentVertexCount;
             s_currentVertexCount++; // 只有这里才增加计数
             
-            s_vertexArray[newIndex] = new Vector3(worldX, h, worldZ);
+            s_vertexArray[newIndex] = new Vector3(worldX, h, worldZ) + MeshOffset;
             
             int gridX = globalSubX >> 1;
             int gridZ = globalSubZ >> 1;

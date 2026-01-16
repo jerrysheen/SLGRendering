@@ -35,7 +35,10 @@ namespace FogManager
         [Header("迷雾起始位置偏移 (XYZ)")]
         public Vector3 FogStartPosition = new Vector3(0, 6, 0);
         // 默认的缩放尺寸，1
+        [Header("地图缩放尺寸")]
         public int GlobalScale = 1;
+        [Header("地图缩放尺寸")]
+        private int MarginSize = 160;
 
         public FogData FogData { get; private set; }
 
@@ -51,10 +54,7 @@ namespace FogManager
         private Color _fogBaseLayerColor;
         private Color _fogTopLayerColor;
         
-        // 持有加载Asset请求，System销毁的时候减少引用。
-        
         // 地图边缘生成迷雾， 目前写死了， 1200 / 160，会扩大5倍
-        private int _marginSize = 160;
         private GameObject _worldCornerMeshGo;
         private Mesh _worldCornerMesh;
         
@@ -494,21 +494,21 @@ namespace FogManager
                 _worldCornerMesh.vertices = new Vector3[]
                 {
                     new Vector3(0.0f, FogHeight, 0.0f),
-                    new Vector3(0.0f, FogHeight, -_marginSize),
-                    new Vector3(totalWidth + _marginSize, FogHeight, -_marginSize),
-                    new Vector3(totalWidth + _marginSize, FogHeight, 0.0f),
+                    new Vector3(0.0f, FogHeight, -MarginSize),
+                    new Vector3(totalWidth + MarginSize, FogHeight, -MarginSize),
+                    new Vector3(totalWidth + MarginSize, FogHeight, 0.0f),
                     new Vector3(totalWidth, FogHeight, 0.0f),
-                    new Vector3(totalWidth + _marginSize, FogHeight, 0.0f),
-                    new Vector3(totalWidth, FogHeight, totalHeight + _marginSize),
-                    new Vector3(totalWidth + _marginSize, FogHeight, totalHeight + _marginSize),
-                    new Vector3(-_marginSize, FogHeight, totalHeight),
+                    new Vector3(totalWidth + MarginSize, FogHeight, 0.0f),
+                    new Vector3(totalWidth, FogHeight, totalHeight + MarginSize),
+                    new Vector3(totalWidth + MarginSize, FogHeight, totalHeight + MarginSize),
+                    new Vector3(-MarginSize, FogHeight, totalHeight),
                     new Vector3(totalWidth, FogHeight, totalHeight),
-                    new Vector3(totalWidth, FogHeight, totalHeight + _marginSize),
-                    new Vector3(-_marginSize, FogHeight, totalHeight + _marginSize),
+                    new Vector3(totalWidth, FogHeight, totalHeight + MarginSize),
+                    new Vector3(-MarginSize, FogHeight, totalHeight + MarginSize),
                     new Vector3(0.0f, FogHeight, totalHeight),
-                    new Vector3(-_marginSize, FogHeight, totalHeight),
-                    new Vector3(-_marginSize, FogHeight, -_marginSize),
-                    new Vector3(0.0f, FogHeight, -_marginSize),
+                    new Vector3(-MarginSize, FogHeight, totalHeight),
+                    new Vector3(-MarginSize, FogHeight, -MarginSize),
+                    new Vector3(0.0f, FogHeight, -MarginSize),
                 };
                 _worldCornerMesh.triangles = new int[]
                 {

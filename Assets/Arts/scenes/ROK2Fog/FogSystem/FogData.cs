@@ -1,6 +1,6 @@
 using UnityEngine;
 using System.IO;
-namespace FogSystem
+namespace FogManager
 {
     public struct FogVertex
     {
@@ -158,7 +158,7 @@ namespace FogSystem
         }
         
         /// <summary>
-        /// 高效获取指定格子的四个角点高度（专为FogSystem优化）
+        /// 高效获取指定格子的四个角点高度（专为FogManager优化）
         /// </summary>
         /// <param name="cellX">格子X坐标</param>
         /// <param name="cellZ">格子Z坐标</param>

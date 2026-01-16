@@ -3,15 +3,21 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEditor;
 using UnityEngine;
+using FogManager;
 
 public class FogTest : MonoBehaviour
 {
     public Vector2Int grid;
     
+    [SerializeField]
+    private FogManager.FogManager _FogManager;
+
     private void Awake()
     {
-        FogManager.GetInstance().InitFogManager();
-        FogManager.GetInstance().RebuildFogMesh();
+        if (_FogManager == null)
+        {
+            _FogManager = FindObjectOfType<FogManager.FogManager>();
+        }
     }
 
     // Start is called before the first frame update
@@ -37,26 +43,25 @@ public class FogTest : MonoBehaviour
     
     private void HandleClick(Vector3 worldPos)
     {
-        var manager = FogManager.GetInstance();
-        if (manager == null) return;
+        if (_FogManager == null) return;
 
         // 计算网格坐标
         // World = Grid * (GlobalScale * CellSize)
         // Grid = World / (GlobalScale * CellSize)
-        float unitSize = manager.GlobalScale * manager.GridCellSize;
+        float unitSize = _FogManager.GlobalScale * _FogManager.GridCellSize;
         
         int gridX = Mathf.FloorToInt(worldPos.x / unitSize);
         int gridY = Mathf.FloorToInt(worldPos.z / unitSize);
 
         // 边界检查
-        int mapW = manager.MapWidth / manager.GridCellSize;
-        int mapH = manager.MapHeight / manager.GridCellSize;
+        int mapW = _FogManager.MapWidth / _FogManager.GridCellSize;
+        int mapH = _FogManager.MapHeight / _FogManager.GridCellSize;
 
         if (gridX >= 0 && gridX < mapW && gridY >= 0 && gridY < mapH)
         {
             Debug.Log($"Click World: {worldPos}, Unlock Grid: ({gridX}, {gridY})");
-            manager.UpdateFogGridInfo(new Vector2Int(gridX, gridY), true);
-            FogManager.GetInstance().RebuildFogMesh();
+            _FogManager.UpdateFogGridInfo(new Vector2Int(gridX, gridY), true);
+            _FogManager.RebuildFogMesh();
         
         }
     }
@@ -64,20 +69,24 @@ public class FogTest : MonoBehaviour
     // unity 退出游戏时调用
     void OnApplicationQuit()
     {
-        FogManager.GetInstance().OnDestroy();
+        // FogManager handles its own destruction via OnDestroy
     }
 
     public void UnlockGrid()
     {
-        FogManager.GetInstance().UpdateFogGridInfo(grid, true);
+        if (_FogManager != null)
+        {
+            _FogManager.UpdateFogGridInfo(grid, true);
+        }
     }
 
     public string NewStringArray()
     {
-        var manager = FogManager.GetInstance();
+        if (_FogManager == null) return "";
+
         // 直接使用 MapWidth 和 MapHeight 作为位数组的大小
-        int mapW = manager.MapWidth / manager.GridCellSize;
-        int mapH = manager.MapHeight / manager.GridCellSize;
+        int mapW = _FogManager.MapWidth / _FogManager.GridCellSize;
+        int mapH = _FogManager.MapHeight / _FogManager.GridCellSize;
         
         int totalCount = mapW * mapH;
         System.Text.StringBuilder sb = new System.Text.StringBuilder(totalCount);
@@ -103,10 +112,11 @@ public class FogTest : MonoBehaviour
 
     public void TestUpdateFogByArray()
     {
-        var manager = FogManager.GetInstance();
+        if (_FogManager == null) return;
+
         // 直接使用 MapWidth 和 MapHeight 作为位数组的大小
-        int mapW = manager.MapWidth / manager.GridCellSize;
-        int mapH = manager.MapHeight / manager.GridCellSize;
+        int mapW = _FogManager.MapWidth / _FogManager.GridCellSize;
+        int mapH = _FogManager.MapHeight / _FogManager.GridCellSize;
         
         int totalCount = mapW * mapH;
         int byteLength = Mathf.CeilToInt(totalCount / 8.0f);
@@ -166,13 +176,16 @@ public class FogTest : MonoBehaviour
         }
 
         // 调用 Manager 进行更新
-        manager.TryUnlockingArea(statusData);
+        _FogManager.TryUnlockingArea(statusData);
     }
 
     
     public void RebuildFogMesh()
     {
-        FogManager.GetInstance().RebuildFogMesh();
+        if (_FogManager != null)
+        {
+            _FogManager.RebuildFogMesh();
+        }
     }
 }
 

@@ -5,7 +5,7 @@ using System.Runtime.InteropServices;
 using Unity.Collections;
 using UnityEngine.Rendering;
 
-namespace FogSystem
+namespace FogManager
 {
     public enum TriangleGenerationType
     {
@@ -52,6 +52,9 @@ namespace FogSystem
         private static int s_currentStartGridZ;
         private static float s_currentFogHeight;
         private static int s_currentVertexCount;
+        
+        // Static reference to FogData to replace singleton access
+        public static FogData CurrentFogData;
 
         public static void InitSingleFogMeshGenerator(int meshSizeX, int meshSizeY)
         {
@@ -77,11 +80,12 @@ namespace FogSystem
             if(s_uvsArray.IsCreated) s_uvsArray.Dispose();
             if(s_trianglesArray.IsCreated) s_trianglesArray.Dispose();
             s_vertexIndexMap = null;
+            CurrentFogData = null;
         }
 
 // ==========================================
 // Init safety: allow generator to be used even if FogManager.InitSingleFogMeshGenerator()
-// has not been called yet (e.g. FogSystem builds border meshes during construction).
+// has not been called yet (e.g. FogManager builds border meshes during construction).
 // ==========================================
 private static void EnsureInitializedForSparse()
 {
@@ -383,7 +387,14 @@ private static void EnsureInitializedForDense(int blockGridCountX, int blockGrid
             
             int gridX = globalSubX >> 1;
             int gridZ = globalSubZ >> 1;
-            FogManager.FOG_TYPE info = FogManager.instance.FogData.GetGridInfoMesh(gridX, gridZ);
+            
+            // Use the static CurrentFogData instead of FogManager.instance
+            FogManager.FOG_TYPE info = FogManager.FOG_TYPE.Locked;
+            if (CurrentFogData != null)
+            {
+                info = CurrentFogData.GetGridInfoMesh(gridX, gridZ);
+            }
+            
             s_uvsArray[newIndex] = GetVertexColor(state, info);
 
             s_vertexIndexMap[mapIndex] = newIndex;
@@ -402,7 +413,10 @@ private static void EnsureInitializedForDense(int blockGridCountX, int blockGrid
             int gridX = gx >> 1;
             int gridZ = gz >> 1;
             if (isHalfX && isHalfZ) {
-                var info = FogManager.instance.FogData.GetGridInfoMesh(gridX, gridZ);
+                // Use static reference
+                var info = FogManager.FOG_TYPE.Locked;
+                if (CurrentFogData != null) info = CurrentFogData.GetGridInfoMesh(gridX, gridZ);
+
                 if (info == FogManager.FOG_TYPE.Unlocked) return VertexFogState.Unlocked;
                 int neighborUnlockedCount = 0;
                 if (IsGridUnlocked(gridX - 1, gridZ)) neighborUnlockedCount++;
@@ -435,7 +449,8 @@ private static void EnsureInitializedForDense(int blockGridCountX, int blockGrid
         }
 
         private static bool IsGridUnlocked(int x, int z) {
-            return FogManager.instance.FogData.GetGridInfoMesh(x, z) == FogManager.FOG_TYPE.Unlocked;
+            if (CurrentFogData == null) return false;
+            return CurrentFogData.GetGridInfoMesh(x, z) == FogManager.FOG_TYPE.Unlocked;
         }
         
         private static UV16 GetVertexColor(VertexFogState state, FogManager.FOG_TYPE gridInfo) {

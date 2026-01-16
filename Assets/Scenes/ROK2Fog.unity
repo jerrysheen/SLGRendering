@@ -122,6 +122,58 @@ NavMeshSettings:
     debug:
       m_Flags: 0
   m_NavMeshData: {fileID: 0}
+--- !u!1 &1013040910
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1013040912}
+  - component: {fileID: 1013040913}
+  m_Layer: 0
+  m_Name: GameObject (1)
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &1013040912
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1013040910}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 778.9902, y: -481.32208, z: 629.2511}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &1013040913
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1013040910}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ad798cb2380af36428a4277bc528b21c, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  MapWidth: 1200
+  MapHeight: 1200
+  GridCellSize: 3
+  FogHeight: 6
+  FogGoPositionZ: 6
+  GlobalScale: 1
+  _fogBaseMaterial: {fileID: 2100000, guid: b0fdfe660b40b534aadc42adb8c226e8, type: 2}
+  _fogMaterial: {fileID: 2100000, guid: b746846612999364fbe8cbedfd5e49a2, type: 2}
 --- !u!1 &1718373881
 GameObject:
   m_ObjectHideFlags: 0
@@ -386,7 +438,6 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 1756299780}
-  - component: {fileID: 1756299781}
   - component: {fileID: 1756299782}
   m_Layer: 0
   m_Name: GameObject
@@ -410,18 +461,6 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &1756299781
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1756299779}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: ad798cb2380af36428a4277bc528b21c, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
 --- !u!114 &1756299782
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -435,6 +474,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   grid: {x: 0, y: 0}
+  _FogManager: {fileID: 0}
 --- !u!1 &1893998865
 GameObject:
   m_ObjectHideFlags: 0
@@ -549,3 +589,4 @@ SceneRoots:
   - {fileID: 1720181616}
   - {fileID: 1756299780}
   - {fileID: 1893998869}
+  - {fileID: 1013040912}

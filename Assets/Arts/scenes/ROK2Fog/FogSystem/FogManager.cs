@@ -66,6 +66,7 @@ namespace FogManager
         private Mesh[] _borderMeshes;
         private Mesh[] _quadMeshes;
         private Matrix4x4 _fogTRS;
+        private bool _borderDirty = true;
         
         private void Start()
         {
@@ -133,6 +134,7 @@ namespace FogManager
                 Quaternion.identity, new Vector3(GlobalScale * GridCellSize, 1, GlobalScale * GridCellSize));
 
             systemInitialized = true;
+            _borderDirty = false;
         }
         
         private void LateUpdate()
@@ -269,6 +271,11 @@ namespace FogManager
         public void InsertArea(OptimizedFogQuad.BoundsAABB aabb, int nodeType)
         {
             _optimizedFogQuad.Insert(aabb, (byte)nodeType);
+            if (aabb.min.x <= 0 || aabb.max.x >= _logicalGridSize || 
+                aabb.min.y <= 0 || aabb.max.y >= _logicalGridSize)
+            {
+                _borderDirty = true;
+            }
         }
 
         /// <summary>
@@ -283,7 +290,11 @@ namespace FogManager
         public void RebuildMeshByQuadTree()
         {
             // 边缘条带需要随内圈变化更新（解锁到边缘时不出现断裂）
-            BuildBorderMeshes();
+            if (_borderDirty)
+            {
+                BuildBorderMeshes();
+                _borderDirty = false;
+            }
             int cap = _optimizedFogQuad.NodeCapacity;
             for (int i = 0; i < cap; i++)
             {

@@ -417,6 +417,8 @@ namespace FogManager
 
             _borderMeshes ??= new Mesh[4];
 
+            int borderThickness = 1; // 明确边缘宽度变量，消除魔法数字
+
             // 0: Bottom, 1: Top, 2: Left, 3: Right
             for (int i = 0; i < 4; i++)
             {
@@ -434,13 +436,13 @@ namespace FogManager
             }
 
             // Bottom strip: z = 0, x: [0.._meshGridSize)
-            SingleFogMeshGenerator.GenerateDenseMeshBlock(_borderMeshes[0], 0, 0, _meshGridSize, 1, FogHeight);
+            SingleFogMeshGenerator.GenerateDenseMeshBlock(_borderMeshes[0], 0, 0, _meshGridSize, borderThickness, FogHeight);
             // Top strip: z = _meshGridSize - 1
-            SingleFogMeshGenerator.GenerateDenseMeshBlock(_borderMeshes[1], 0, _meshGridSize - 1, _meshGridSize, 1, FogHeight);
+            SingleFogMeshGenerator.GenerateDenseMeshBlock(_borderMeshes[1], 0, _meshGridSize - borderThickness, _meshGridSize, borderThickness, FogHeight);
             // Left strip: x = 0
-            SingleFogMeshGenerator.GenerateDenseMeshBlock(_borderMeshes[2], 0, 0, 1, _meshGridSize, FogHeight);
+            SingleFogMeshGenerator.GenerateDenseMeshBlock(_borderMeshes[2], 0, 0, borderThickness, _meshGridSize, FogHeight);
             // Right strip: x = _meshGridSize - 1
-            SingleFogMeshGenerator.GenerateDenseMeshBlock(_borderMeshes[3], _meshGridSize - 1, 0, 1, _meshGridSize, FogHeight);
+            SingleFogMeshGenerator.GenerateDenseMeshBlock(_borderMeshes[3], _meshGridSize - borderThickness, 0, borderThickness, _meshGridSize, FogHeight);
         }
 
         private void DrawBorderMeshes()
@@ -463,27 +465,36 @@ namespace FogManager
                 MeshFilter meshFilter = _worldCornerMeshGo.AddComponent<MeshFilter>();
                 MeshRenderer meshRenderer = _worldCornerMeshGo.AddComponent<MeshRenderer>();
                 _worldCornerMeshGo.transform.localPosition = new Vector3(-GlobalScale * GridCellSize, FogGoPositionZ, -GlobalScale * GridCellSize);
+                // Correct scale to account for GlobalScale here
                 _worldCornerMeshGo.transform.localScale = new Vector3(GlobalScale, 1 , GlobalScale);
                 _worldCornerMesh = new Mesh();
                 meshFilter.mesh = _worldCornerMesh;
                 meshRenderer.sharedMaterials = new []{_fogBaseMaterial, _fogTopMaterial };
                 _worldCornerMesh.Clear();
+
+                // Calculate total mesh width/height in meters (before GlobalScale)
+                // Logical Grid Size = MapWidth / GridCellSize
+                // Mesh Grid Size = Logical Grid Size + 2 (1 border on each side)
+                // Total Physical Width = Mesh Grid Size * GridCellSize = MapWidth + 2 * GridCellSize
+                float totalWidth = MapWidth + 2 * GridCellSize;
+                float totalHeight = MapHeight + 2 * GridCellSize;
+
                 _worldCornerMesh.vertices = new Vector3[]
                 {
                     new Vector3(0.0f, FogHeight, 0.0f),
                     new Vector3(0.0f, FogHeight, -_marginSize),
-                    new Vector3(MapWidth + _marginSize, FogHeight, -_marginSize),
-                    new Vector3(MapWidth + _marginSize, FogHeight, 0.0f),
-                    new Vector3(MapWidth, FogHeight, 0.0f),
-                    new Vector3(MapWidth + _marginSize, FogHeight, 0.0f),
-                    new Vector3(MapWidth, FogHeight, MapHeight + _marginSize),
-                    new Vector3(MapWidth + _marginSize, FogHeight, MapHeight + _marginSize),
-                    new Vector3(-_marginSize, FogHeight, MapHeight),
-                    new Vector3(MapWidth, FogHeight, MapHeight),
-                    new Vector3(MapWidth, FogHeight, MapHeight + _marginSize),
-                    new Vector3(-_marginSize, FogHeight, MapHeight + _marginSize),
-                    new Vector3(0.0f, FogHeight, MapHeight),
-                    new Vector3(-_marginSize, FogHeight, MapHeight),
+                    new Vector3(totalWidth + _marginSize, FogHeight, -_marginSize),
+                    new Vector3(totalWidth + _marginSize, FogHeight, 0.0f),
+                    new Vector3(totalWidth, FogHeight, 0.0f),
+                    new Vector3(totalWidth + _marginSize, FogHeight, 0.0f),
+                    new Vector3(totalWidth, FogHeight, totalHeight + _marginSize),
+                    new Vector3(totalWidth + _marginSize, FogHeight, totalHeight + _marginSize),
+                    new Vector3(-_marginSize, FogHeight, totalHeight),
+                    new Vector3(totalWidth, FogHeight, totalHeight),
+                    new Vector3(totalWidth, FogHeight, totalHeight + _marginSize),
+                    new Vector3(-_marginSize, FogHeight, totalHeight + _marginSize),
+                    new Vector3(0.0f, FogHeight, totalHeight),
+                    new Vector3(-_marginSize, FogHeight, totalHeight),
                     new Vector3(-_marginSize, FogHeight, -_marginSize),
                     new Vector3(0.0f, FogHeight, -_marginSize),
                 };

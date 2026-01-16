@@ -169,11 +169,11 @@ MonoBehaviour:
   MapWidth: 1200
   MapHeight: 1200
   GridCellSize: 3
-  FogHeight: 6
-  FogGoPositionZ: 6
+  FogHeight: 3
+  FogGoPositionZ: 0
   GlobalScale: 1
   _fogBaseMaterial: {fileID: 2100000, guid: b0fdfe660b40b534aadc42adb8c226e8, type: 2}
-  _fogMaterial: {fileID: 2100000, guid: b746846612999364fbe8cbedfd5e49a2, type: 2}
+  _fogTopMaterial: {fileID: 2100000, guid: b746846612999364fbe8cbedfd5e49a2, type: 2}
 --- !u!1 &1718373881
 GameObject:
   m_ObjectHideFlags: 0

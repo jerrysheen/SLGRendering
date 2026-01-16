@@ -85,38 +85,38 @@ namespace FogManager
             CurrentFogData = null;
         }
 
-// ==========================================
-// Init safety: allow generator to be used even if FogManager.InitSingleFogMeshGenerator()
-// has not been called yet (e.g. FogManager builds border meshes during construction).
-// ==========================================
-private static void EnsureInitializedForSparse()
-{
-    // Sparse only needs vertex layouts + small temp buffers (4 verts / 6 indices),
-    // so a minimal init is enough.
-    if (s_estimateCapacity <= 0 || !s_vertexArray.IsCreated)
-    {
-        InitSingleFogMeshGenerator(1, 1); // => capacity 9
-    }
-}
+        // ==========================================
+        // Init safety: allow generator to be used even if FogManager.InitSingleFogMeshGenerator()
+        // has not been called yet (e.g. FogManager builds border meshes during construction).
+        // ==========================================
+        private static void EnsureInitializedForSparse()
+        {
+            // Sparse only needs vertex layouts + small temp buffers (4 verts / 6 indices),
+            // so a minimal init is enough.
+            if (s_estimateCapacity <= 0 || !s_vertexArray.IsCreated)
+            {
+                InitSingleFogMeshGenerator(1, 1); // => capacity 9
+            }
+        }
 
-private static void EnsureInitializedForDense(int blockGridCountX, int blockGridCountZ)
-{
-    int needX = Mathf.Max(1, blockGridCountX);
-    int needZ = Mathf.Max(1, blockGridCountZ);
+        private static void EnsureInitializedForDense(int blockGridCountX, int blockGridCountZ)
+        {
+            int needX = Mathf.Max(1, blockGridCountX);
+            int needZ = Mathf.Max(1, blockGridCountZ);
 
-    if (s_estimateCapacity <= 0 || !s_vertexArray.IsCreated)
-    {
-        InitSingleFogMeshGenerator(needX, needZ);
-        return;
-    }
+            if (s_estimateCapacity <= 0 || !s_vertexArray.IsCreated)
+            {
+                InitSingleFogMeshGenerator(needX, needZ);
+                return;
+            }
 
-    int requiredCapacity = (needX * 2 + 1) * (needZ * 2 + 1);
-    if (requiredCapacity > s_estimateCapacity)
-    {
-        // Re-init to a larger buffer if we ever encounter a larger block than the initial estimate.
-        InitSingleFogMeshGenerator(needX, needZ);
-    }
-}
+            int requiredCapacity = (needX * 2 + 1) * (needZ * 2 + 1);
+            if (requiredCapacity > s_estimateCapacity)
+            {
+                // Re-init to a larger buffer if we ever encounter a larger block than the initial estimate.
+                InitSingleFogMeshGenerator(needX, needZ);
+            }
+        }
 
 
         // GenerateSparseMeshBlock 保持不变，省略...
@@ -125,7 +125,6 @@ private static void EnsureInitializedForDense(int blockGridCountX, int blockGrid
             // Ensure static buffers/layouts are initialized (border meshes may call this before any other generator).
             if (s_vertexIndexMap == null)
                 EnsureInitializedForSparse();
-// ... (保持你原本的代码不变) ...
              // 为了节省篇幅这里不重复粘贴，该函数逻辑简单不涉及大量剔除
              // 如果你需要这里也剔除，逻辑同下
              if (GetMeshGeneratedState(mesh) == MeshState.Uninitialized)

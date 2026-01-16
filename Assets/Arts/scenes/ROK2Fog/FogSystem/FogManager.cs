@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Runtime.InteropServices;
 using System.Linq;
 using DG.Tweening;
 using ELEX.Resource;
@@ -218,16 +219,16 @@ namespace FogManager
             }
         }
 
-        public void TryUnlockingArea(byte[] gridStatusBits)
+        public void TryUnlockingArea(IntPtr gridStatusBits, int bitLength)
         {
             // 外部传入的是基于 MapWidth * MapHeight 的位数组
             int mapW = MapWidth / GridCellSize;
             int mapH = MapHeight / GridCellSize;
             int totalCells = mapW * mapH;
 
-            if (gridStatusBits.Length < (totalCells + 7) / 8)
+            if (bitLength != totalCells)
             {
-                Debug.LogError($"Grid status array size too small! Expected bytes: {(totalCells + 7) / 8}, Actual: {gridStatusBits.Length}");
+                Debug.LogError($"Grid status bits length mismatch! Expected bits: {totalCells}, Actual: {bitLength}");
                 return;
             }
 
@@ -240,7 +241,8 @@ namespace FogManager
                     int bitIndex = index % 8;
 
                     // 检查对应位是否为1
-                    bool isUnlocked = (gridStatusBits[byteIndex] & (1 << bitIndex)) != 0;
+                    byte b = Marshal.ReadByte(gridStatusBits, byteIndex);
+                    bool isUnlocked = (b & (1 << bitIndex)) != 0;
 
                     if (isUnlocked)
                     {
@@ -271,8 +273,8 @@ namespace FogManager
         public void InsertArea(OptimizedFogQuad.BoundsAABB aabb, int nodeType)
         {
             _optimizedFogQuad.Insert(aabb, (byte)nodeType);
-            if (aabb.min.x <= 0 || aabb.max.x >= _logicalGridSize || 
-                aabb.min.y <= 0 || aabb.max.y >= _logicalGridSize)
+            if (aabb.MinXY.x <= 0 || aabb.MaxXY.x >= _logicalGridSize || 
+                aabb.MinXY.y <= 0 || aabb.MaxXY.y >= _logicalGridSize)
             {
                 _borderDirty = true;
             }

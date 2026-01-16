@@ -1,6 +1,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Runtime.InteropServices;
 using UnityEditor;
 using UnityEngine;
 using FogManager;
@@ -176,7 +177,17 @@ public class FogTest : MonoBehaviour
         }
 
         // 调用 Manager 进行更新
-        _FogManager.TryUnlockingArea(statusData);
+        GCHandle handle = GCHandle.Alloc(statusData, GCHandleType.Pinned);
+        try
+        {
+            IntPtr ptr = handle.AddrOfPinnedObject();
+            _FogManager.TryUnlockingArea(ptr, totalCount);
+        }
+        finally
+        {
+            if (handle.IsAllocated)
+                handle.Free();
+        }
     }
 
     
@@ -186,6 +197,27 @@ public class FogTest : MonoBehaviour
         {
             _FogManager.RebuildFogMesh();
         }
+    }
+
+    [Header("Unlock Test")]
+    public Vector2Int UnlockTestCenter;
+    public int UnlockTestRadius = 1;
+
+    public void TestUnlockEffect()
+    {
+        if (_FogManager == null) return;
+
+        List<Vector2Int> gridList = new List<Vector2Int>();
+        for (int x = -UnlockTestRadius; x <= UnlockTestRadius; x++)
+        {
+            for (int y = -UnlockTestRadius; y <= UnlockTestRadius; y++)
+            {
+                gridList.Add(new Vector2Int(UnlockTestCenter.x + x, UnlockTestCenter.y + y));
+            }
+        }
+
+        _FogManager.GenerateUnlockingAreaFogGo(gridList);
+        _FogManager.StartUnlockAreaFogGo();
     }
 }
 
@@ -209,6 +241,12 @@ public class FogTestEditor : Editor
         if (GUILayout.Button("Test Bit Array Unlock"))
         {
             fogTest.TestUpdateFogByArray();
+        }
+
+        GUILayout.Space(10);
+        if (GUILayout.Button("Test Unlock Effect"))
+        {
+            fogTest.TestUnlockEffect();
         }
     }
 }

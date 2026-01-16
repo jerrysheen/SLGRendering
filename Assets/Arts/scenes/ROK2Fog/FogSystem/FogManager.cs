@@ -69,9 +69,20 @@ namespace FogManager
         private Matrix4x4 _fogTRS;
         private bool _borderDirty = true;
         
+        private SingleFogMeshGenerator _meshGenerator;
+
         private void Start()
         {
             InitializeSystem();
+        }
+
+        private void OnEnable()
+        {
+            if (systemInitialized)
+            {
+                if (_fogUnlockingGo != null) _fogUnlockingGo.SetActive(true);
+                if (_worldCornerMeshGo != null) _worldCornerMeshGo.SetActive(true);
+            }
         }
 
         /// <summary>
@@ -85,9 +96,6 @@ namespace FogManager
             if(FogData == null) FogData = new FogData();
             FogData.Initialize(MapWidth, MapHeight, GridCellSize, FogHeight);
             
-            // Set static reference for the generator
-            SingleFogMeshGenerator.CurrentFogData = FogData;
-
             // Calculate generator offset (inverse scale for X/Z)
             float scaleXZ = GlobalScale * GridCellSize;
             Vector3 generatorOffset = new Vector3(
@@ -95,10 +103,13 @@ namespace FogManager
                 FogStartPosition.y, 
                 scaleXZ > 0 ? FogStartPosition.z / scaleXZ : 0
             );
-            SingleFogMeshGenerator.MeshOffset = generatorOffset;
 
+            // Instantiate the generator instance
+            _meshGenerator = new SingleFogMeshGenerator(FogData);
+            _meshGenerator.MeshOffset = generatorOffset;
+            
             // Note: Keeping the hardcoded 25, 25 from original FogManager logic for now
-            SingleFogMeshGenerator.InitSingleFogMeshGenerator(25, 25);
+            _meshGenerator.InitBuffers(25, 25);
 
             if (_fogBaseMaterial == null)
             { 
@@ -156,10 +167,10 @@ namespace FogManager
             }
         }
         
-        // OnDisable可能有问题？，再想想
         private void OnDisable()
         {
-            ShutDownFogManager();
+             if (_fogUnlockingGo != null) _fogUnlockingGo.SetActive(false);
+             if (_worldCornerMeshGo != null) _worldCornerMeshGo.SetActive(false);
         }
 
         private void OnDestroy()
@@ -201,9 +212,12 @@ namespace FogManager
             }
             
             FogData = null;
-            // Clear the static reference
-            SingleFogMeshGenerator.CurrentFogData = null;
-            SingleFogMeshGenerator.Dispose();
+            
+            if (_meshGenerator != null)
+            {
+                _meshGenerator.Dispose();
+                _meshGenerator = null;
+            }
             systemInitialized = false;
         }
 
@@ -331,11 +345,11 @@ namespace FogManager
             else if (_optimizedFogQuad.GetNodeType(nodeIndex) == (byte)FOG_TYPE.Locked)
             {
                 // 四叉树在逻辑坐标中：logical(0,0) -> mesh(1,1)
-                SingleFogMeshGenerator.GenerateSparseMeshBlock(_quadMeshes[nodeIndex], min.x + 1, min.y + 1, blockCountX, blockCountY, FogHeight);
+                _meshGenerator.GenerateSparseMeshBlock(_quadMeshes[nodeIndex], min.x + 1, min.y + 1, blockCountX, blockCountY, FogHeight);
             }
             else
             {
-                SingleFogMeshGenerator.GenerateDenseMeshBlock(_quadMeshes[nodeIndex], min.x + 1, min.y + 1, blockCountX, blockCountY, FogHeight);
+                _meshGenerator.GenerateDenseMeshBlock(_quadMeshes[nodeIndex], min.x + 1, min.y + 1, blockCountX, blockCountY, FogHeight);
             }
             
             _optimizedFogQuad.MarkRebuilt(nodeIndex);
@@ -370,7 +384,7 @@ namespace FogManager
                 _fogUnlockingMesh = new Mesh();
             }
             var shiftedVerts = plateauVerts.Select(v => new Vector2Int(v.x + 1, v.y + 1)).ToList();
-            SingleFogMeshGenerator.GenerateSeperateUnlockFogMesh(_fogUnlockingMesh, shiftedVerts, FogHeight);
+            _meshGenerator.GenerateSeperateUnlockFogMesh(_fogUnlockingMesh, shiftedVerts, FogHeight);
 
             if (_fogUnlockingGo == null)
             {
@@ -452,13 +466,13 @@ namespace FogManager
             }
 
             // Bottom strip: z = 0, x: [0.._meshGridSize)
-            SingleFogMeshGenerator.GenerateDenseMeshBlock(_borderMeshes[0], 0, 0, _meshGridSize, borderThickness, FogHeight);
+            _meshGenerator.GenerateDenseMeshBlock(_borderMeshes[0], 0, 0, _meshGridSize, borderThickness, FogHeight);
             // Top strip: z = _meshGridSize - 1
-            SingleFogMeshGenerator.GenerateDenseMeshBlock(_borderMeshes[1], 0, _meshGridSize - borderThickness, _meshGridSize, borderThickness, FogHeight);
-            // Left strip: x = 0
-            SingleFogMeshGenerator.GenerateDenseMeshBlock(_borderMeshes[2], 0, 0, borderThickness, _meshGridSize, FogHeight);
-            // Right strip: x = _meshGridSize - 1
-            SingleFogMeshGenerator.GenerateDenseMeshBlock(_borderMeshes[3], _meshGridSize - borderThickness, 0, borderThickness, _meshGridSize, FogHeight);
+            _meshGenerator.GenerateDenseMeshBlock(_borderMeshes[1], 0, _meshGridSize - borderThickness, _meshGridSize, borderThickness, FogHeight);
+            // Left strip: x = 0, z: [borderThickness.._meshGridSize - borderThickness) to avoid corner overlap
+            _meshGenerator.GenerateDenseMeshBlock(_borderMeshes[2], 0, borderThickness, borderThickness, _meshGridSize - borderThickness * 2, FogHeight);
+            // Right strip: x = _meshGridSize - 1, z: [borderThickness.._meshGridSize - borderThickness) to avoid corner overlap
+            _meshGenerator.GenerateDenseMeshBlock(_borderMeshes[3], _meshGridSize - borderThickness, borderThickness, borderThickness, _meshGridSize - borderThickness * 2, FogHeight);
         }
 
         private void DrawBorderMeshes()

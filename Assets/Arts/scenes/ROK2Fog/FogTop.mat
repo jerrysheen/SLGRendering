@@ -150,7 +150,7 @@ Material:
     - _FLowSpeednDir: {r: 0.2, g: 0.2, b: 0.15, a: 0.15}
     - _FLowTilling: {r: 5, g: 5, b: 5, a: 5}
     - _FogColor: {r: 0.99607843, g: 1, b: 0.99607843, a: 1}
-    - _FogColor1: {r: 0.7433963, g: 0.500278, b: 0.34084013, a: 1}
+    - _FogColor1: {r: 1, g: 0.6240703, b: 0.3754716, a: 1}
     - _FogColor1Test0: {r: 1.1486984, g: 1.1486984, b: 1.1486984, a: 1}
     - _FogColor1Test1: {r: 0.28417686, g: 0.28417686, b: 0.28417686, a: 1}
     - _FogHighLightColor: {r: 0.5, g: 0.5, b: 0.5, a: 1}

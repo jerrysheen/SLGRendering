@@ -103,7 +103,30 @@ namespace FogSystem
             return GetVertex(x, z).height;
         }
 
+                // =========================
+        // Grid 查询：逻辑坐标 vs Mesh 坐标
+        // 逻辑格子范围： [0 .. dataGridCountX-1]
+        // Mesh格子范围： [0 .. dataGridCountX+1] （四周各多 1 格）
+        // Mesh(1,1) <-> 逻辑(0,0)
+        // =========================
         public FogManager.FOG_TYPE GetGridInfo(int cellX, int cellZ)
+        {
+            // 兼容旧调用：默认认为传入的是“逻辑坐标”
+            return GetGridInfoLogical(cellX, cellZ);
+        }
+
+        /// <summary>
+        /// Mesh 坐标查询：mesh(1,1) 对齐逻辑(0,0)，mesh(0,*) / mesh(*,0) 属于边缘补齐区域，永远视为 Locked。
+        /// </summary>
+        public FogManager.FOG_TYPE GetGridInfoMesh(int meshCellX, int meshCellZ)
+        {
+            return GetGridInfoLogical(meshCellX - 1, meshCellZ - 1);
+        }
+
+        /// <summary>
+        /// 逻辑坐标查询（原始实现）
+        /// </summary>
+        private FogManager.FOG_TYPE GetGridInfoLogical(int cellX, int cellZ)
         {
             if (cellX >= 0 && cellX < dataGridCountX && cellZ >= 0 && cellZ < dataGridCountZ)
             {
@@ -167,7 +190,9 @@ namespace FogSystem
         /// </summary>
         public bool UnlockCell(int cellX, int cellZ)
         {
-            if (cellX >= 1 && cellX < dataGridCountX - 1 && cellZ >= 1 && cellZ < dataGridCountZ - 1)
+            if (cellX < 0 || cellX >= dataGridCountX || cellZ < 0 || cellZ >= dataGridCountZ) return false;
+
+            if (cellX >= 0 && cellX < dataGridCountX && cellZ >= 0 && cellZ < dataGridCountZ)
             {
                 if (gridData[cellX, cellZ] == FogManager.FOG_TYPE.Unlocked) return false;
                 gridData[cellX, cellZ] = FogManager.FOG_TYPE.Unlocked;

@@ -79,10 +79,47 @@ namespace FogSystem
             s_vertexIndexMap = null;
         }
 
+// ==========================================
+// Init safety: allow generator to be used even if FogManager.InitSingleFogMeshGenerator()
+// has not been called yet (e.g. FogSystem builds border meshes during construction).
+// ==========================================
+private static void EnsureInitializedForSparse()
+{
+    // Sparse only needs vertex layouts + small temp buffers (4 verts / 6 indices),
+    // so a minimal init is enough.
+    if (s_estimateCapacity <= 0 || !s_vertexArray.IsCreated)
+    {
+        InitSingleFogMeshGenerator(1, 1); // => capacity 9
+    }
+}
+
+private static void EnsureInitializedForDense(int blockGridCountX, int blockGridCountZ)
+{
+    int needX = Mathf.Max(1, blockGridCountX);
+    int needZ = Mathf.Max(1, blockGridCountZ);
+
+    if (s_estimateCapacity <= 0 || !s_vertexArray.IsCreated)
+    {
+        InitSingleFogMeshGenerator(needX, needZ);
+        return;
+    }
+
+    int requiredCapacity = (needX * 2 + 1) * (needZ * 2 + 1);
+    if (requiredCapacity > s_estimateCapacity)
+    {
+        // Re-init to a larger buffer if we ever encounter a larger block than the initial estimate.
+        InitSingleFogMeshGenerator(needX, needZ);
+    }
+}
+
+
         // GenerateSparseMeshBlock 保持不变，省略...
         public static void GenerateSparseMeshBlock(Mesh mesh, int startGridX, int startGridZ, int blockGridCountX, int blockGridCountZ, float height)
         {
-             // ... (保持你原本的代码不变) ...
+            // Ensure static buffers/layouts are initialized (border meshes may call this before any other generator).
+            if (s_vertexIndexMap == null)
+                EnsureInitializedForSparse();
+// ... (保持你原本的代码不变) ...
              // 为了节省篇幅这里不重复粘贴，该函数逻辑简单不涉及大量剔除
              // 如果你需要这里也剔除，逻辑同下
              if (GetMeshGeneratedState(mesh) == MeshState.Uninitialized)
@@ -138,7 +175,9 @@ namespace FogSystem
         public static void GenerateDenseMeshBlock(Mesh mesh, int startGridX, int startGridZ, 
             int blockGridCountX, int blockGridCountZ, float fogHeight)
         {
-            // 设置静态上下文，供后续方法使用
+            
+            EnsureInitializedForDense(blockGridCountX, blockGridCountZ);
+// 设置静态上下文，供后续方法使用
             s_currentStartGridX = startGridX;
             s_currentStartGridZ = startGridZ;
             s_currentFogHeight = fogHeight;
@@ -163,6 +202,7 @@ namespace FogSystem
             // 重置映射表
             int mapW = blockGridCountX * 2 + 1;
             int mapH = blockGridCountZ * 2 + 1;
+            s_mapWidth = mapW;
             int mapSize = mapW * mapH;
             
             if (s_vertexIndexMap == null || s_vertexIndexMap.Length < mapSize) 
@@ -343,7 +383,7 @@ namespace FogSystem
             
             int gridX = globalSubX >> 1;
             int gridZ = globalSubZ >> 1;
-            FogManager.FOG_TYPE info = FogManager.instance.FogData.GetGridInfo(gridX, gridZ);
+            FogManager.FOG_TYPE info = FogManager.instance.FogData.GetGridInfoMesh(gridX, gridZ);
             s_uvsArray[newIndex] = GetVertexColor(state, info);
 
             s_vertexIndexMap[mapIndex] = newIndex;
@@ -362,7 +402,7 @@ namespace FogSystem
             int gridX = gx >> 1;
             int gridZ = gz >> 1;
             if (isHalfX && isHalfZ) {
-                var info = FogManager.instance.FogData.GetGridInfo(gridX, gridZ);
+                var info = FogManager.instance.FogData.GetGridInfoMesh(gridX, gridZ);
                 if (info == FogManager.FOG_TYPE.Unlocked) return VertexFogState.Unlocked;
                 int neighborUnlockedCount = 0;
                 if (IsGridUnlocked(gridX - 1, gridZ)) neighborUnlockedCount++;
@@ -395,7 +435,7 @@ namespace FogSystem
         }
 
         private static bool IsGridUnlocked(int x, int z) {
-            return FogManager.instance.FogData.GetGridInfo(x, z) == FogManager.FOG_TYPE.Unlocked;
+            return FogManager.instance.FogData.GetGridInfoMesh(x, z) == FogManager.FOG_TYPE.Unlocked;
         }
         
         private static UV16 GetVertexColor(VertexFogState state, FogManager.FOG_TYPE gridInfo) {

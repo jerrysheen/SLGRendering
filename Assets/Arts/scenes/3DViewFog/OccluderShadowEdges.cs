@@ -193,7 +193,8 @@ public class OccluderShadowEdges : MonoBehaviour
             toPlayer.y = 0;
 
             // 如果外法线和"边到玩家"方向反向，说明玩家在内侧，渲染阴影
-            bool shouldRender = Vector3.Dot(nW, toPlayer) < -0.01f;
+            //bool shouldRender = Vector3.Dot(nW, toPlayer) < -0.01f;
+            bool shouldRender = true;
             if (ed.renderer) ed.renderer.enabled = shouldRender;
         }
     }

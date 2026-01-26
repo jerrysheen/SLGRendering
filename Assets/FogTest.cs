@@ -257,6 +257,58 @@ public class FogTest : MonoBehaviour
         // 3. Start the unlock animation
         _FogManager.StartUnlockAreaFogGo();
     }
+
+    [Header("Lock Test")]
+    public Vector2Int LockTestCenter;
+    public int LockTestRadius = 1;
+
+    public void TestLockEffect()
+    {
+        if (_FogManager == null) return;
+
+        List<Vector2Int> gridList = new List<Vector2Int>();
+        
+        // Random Walk Generation for Irregular Continuous Area
+        HashSet<Vector2Int> visited = new HashSet<Vector2Int>();
+        Vector2Int current = LockTestCenter;
+        visited.Add(current);
+        gridList.Add(current);
+
+        int steps = LockTestRadius * 10; // Number of steps based on radius
+        Vector2Int[] directions = new Vector2Int[] { Vector2Int.up, Vector2Int.down, Vector2Int.left, Vector2Int.right };
+
+        for (int i = 0; i < steps; i++)
+        {
+            Vector2Int dir = directions[UnityEngine.Random.Range(0, 4)];
+            current += dir;
+            
+            // Constrain roughly within radius distance to keep it somewhat centered
+            if (Vector2Int.Distance(current, LockTestCenter) > LockTestRadius * 2)
+            {
+                current = LockTestCenter; // Reset to center if too far
+                continue;
+            }
+
+            if (visited.Add(current))
+            {
+                gridList.Add(current);
+            }
+        }
+
+        // 加锁流程（与解锁相反）
+        // 1. 先更新逻辑网格数据（加锁）
+        foreach (var pos in gridList)
+        {
+            _FogManager.UpdateFogGridInfo(pos, false); // false = 加锁
+        }
+        // 注意：这里不调用 RebuildFogMesh()，等动画结束后再调用
+        
+        // 2. 生成加锁的迷雾视觉对象
+        _FogManager.GenerateUnlockingAreaFogGo(gridList);
+        
+        // 3. 启动加锁动画（从透明到不透明）
+        _FogManager.StartLockAreaFogGo();
+    }
 }
 
 [CustomEditor(typeof(FogTest))]
@@ -290,6 +342,12 @@ public class FogTestEditor : Editor
         if (GUILayout.Button("Test Unlock Effect"))
         {
             fogTest.TestUnlockEffect();
+        }
+
+        GUILayout.Space(10);
+        if (GUILayout.Button("Test Lock Effect"))
+        {
+            fogTest.TestLockEffect();
         }
     }
 }

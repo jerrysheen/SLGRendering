@@ -491,6 +491,48 @@ namespace FogManager
             _tween = seq; 
         }
 
+        /// <summary>
+        /// 迷雾表现，单块加锁渐显
+        /// Start the lock animation (fade in)
+        /// </summary>
+        public void StartLockAreaFogGo()
+        {
+            _tween?.Kill();   
+            float duration = 1.5f;
+            Sequence seq = DOTween.Sequence();
+            Color topLayerColor = _fogTopLayerColor;
+            Color baseLayerColor = _fogBaseLayerColor;
+            float currentAlpha = 0; // 从0开始
+            
+            // 设置初始透明度为0
+            topLayerColor.a = 0;
+            baseLayerColor.a = 0;
+            _fogUnlockingTopMaterial.SetColor("_FogColor", topLayerColor);   
+            _fogUnlockingBaseMaterial.SetColor("_FogColor", baseLayerColor);
+            
+            seq.Append(
+                DOTween.To(() => currentAlpha,
+                        value => {
+                            topLayerColor.a = value;
+                            baseLayerColor.a = value;
+                            _fogUnlockingTopMaterial.SetColor("_FogColor", topLayerColor);   
+                            _fogUnlockingBaseMaterial.SetColor("_FogColor", baseLayerColor);
+                        },
+                        1, // 渐变到1（完全不透明）
+                        duration)
+                    .SetEase(Ease.Linear)
+            );
+            
+            // 动画完成后：重建主迷雾网格，然后隐藏临时对象
+            seq.OnComplete(() => 
+            {
+                RebuildFogMesh();
+                _fogUnlockingGo.SetActive(false);
+            });
+            
+            _tween = seq; 
+        }
+
         #endregion
 
         #region Border & World Corner

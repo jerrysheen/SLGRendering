@@ -165,9 +165,9 @@ Shader "Hidden/FoV_PostProcess"
                 half s = saturate(shadowVis);
                 half v = step(0.9,saturate(sphereVis));
                 // 只有当两者都 > 0.5 时才亮（重叠区域）
-                half finalVisibility = s * v;
+                half finalVisibility = s * 1;
                 // 输出：混合黑色(或阴影色)与场景色
-                return lerp(_FogColor, sceneColor, saturate(finalVisibility + _FogColor.a));
+                return half4(finalVisibility, 0,0,1);
             }
             ENDHLSL
         }

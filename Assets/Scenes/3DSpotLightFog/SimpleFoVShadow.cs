@@ -6,8 +6,12 @@ public class SimpleFoVShadow : MonoBehaviour
     [Header("设置")]
     [Range(1, 179)] public float fovAngle = 170f; // 179度边缘拉伸会极大约束，建议160-170
     public float viewDistance = 20f;
+    public float nearPlane = 0.1f;
     public int shadowMapResolution = 1024;
-    public LayerMask obstacleLayer; // 只渲染墙壁层
+    public string layerName = "Block"; // Layer名称，Start时会验证是否存在
+    
+    [HideInInspector]
+    public LayerMask obstacleLayer; // 只渲染墙壁层（通过layerName自动设置）
     
     [Header("Shader引用")]
     public Shader depthCasterShader; // 拖入上面的 FoV_DepthCaster
@@ -16,6 +20,21 @@ public class SimpleFoVShadow : MonoBehaviour
     private Camera shadowCam;
     private RenderTexture shadowRT;
     private GameObject camObj;
+
+    void Start()
+    {
+        // 验证 Layer 是否存在
+        int layer = LayerMask.NameToLayer(layerName);
+        if (layer == -1)
+        {
+            Debug.LogError($"[SimpleFoVShadow] Layer '{layerName}' 不存在！请在 Project Settings > Tags and Layers 中创建该 Layer。", this);
+        }
+        else
+        {
+            obstacleLayer = 1 << layer;
+            Debug.Log($"[SimpleFoVShadow] 成功设置 Layer: {layerName} (LayerMask: {obstacleLayer.value})");
+        }
+    }
 
     void OnEnable()
     {
@@ -35,6 +54,7 @@ public class SimpleFoVShadow : MonoBehaviour
 
         // 1. 同步参数
         shadowCam.fieldOfView = fovAngle;
+        shadowCam.nearClipPlane = nearPlane;
         shadowCam.farClipPlane = viewDistance;
         shadowCam.cullingMask = obstacleLayer;
     
@@ -86,6 +106,7 @@ public class SimpleFoVShadow : MonoBehaviour
         shadowCam = camObj.AddComponent<Camera>();
         shadowCam.enabled = false; // 我们手动 Render，不需要它自动跑
         shadowCam.aspect = 1.0f;   // 阴影图必须是正方形
+        shadowCam.nearClipPlane = nearPlane;
         shadowCam.backgroundColor = Color.white; // 默认距离是 1 (无限远)
         shadowCam.clearFlags = CameraClearFlags.SolidColor;
         

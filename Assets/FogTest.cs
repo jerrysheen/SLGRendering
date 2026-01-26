@@ -81,6 +81,14 @@ public class FogTest : MonoBehaviour
         }
     }
 
+    public void LockGrid()
+    {
+        if (_FogManager != null)
+        {
+            _FogManager.UpdateFogGridInfo(grid, false);
+        }
+    }
+
     public string NewStringArray()
     {
         if (_FogManager == null) return "";
@@ -261,6 +269,11 @@ public class FogTestEditor : Editor
         if (GUILayout.Button("UnLockArea"))
         {
             fogTest.UnlockGrid();
+        }        
+        
+        if (GUILayout.Button("LockArea"))
+        {
+            fogTest.LockGrid();
         }
         
         if (GUILayout.Button("RebuildFogMesh"))

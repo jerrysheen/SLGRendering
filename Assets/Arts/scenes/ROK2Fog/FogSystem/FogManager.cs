@@ -46,7 +46,7 @@ namespace FogManager
         public Material FogBaseMaterial; // 地形材质
         public Material FogTopMaterial;  // 地形材质
 
-        private const int MARGIN_SIZE = 160;
+        private const int MARGIN_SIZE = 50;
         
         // Runtime Data
         public FogData FogData { get; private set; }
@@ -256,6 +256,18 @@ namespace FogManager
                         new Vector2Int(gridID.x + 2, gridID.y + 2)), 
                         (int)type);
                 }
+            }
+            else
+            {
+                if (FogData.LockCell(gridID.x, gridID.y))
+                {
+                    // 稍微扩大脏的区域， 这样确保所有标记为lock的区域直接生成大面片就ok
+                    // Expand dirty area slightly to ensure boundary continuity
+                    InsertArea(new OptimizedFogQuad.BoundsAABB(
+                            new Vector2Int(gridID.x - 1, gridID.y - 1),
+                            new Vector2Int(gridID.x + 2, gridID.y + 2)), 
+                        (int)type);
+                }                
             }
         }
 
@@ -557,8 +569,8 @@ namespace FogManager
                 float totalWidth = MapWidth + 2 * GridCellSize;
                 float totalHeight = MapHeight + 2 * GridCellSize;
 
-                // Create a skirt around the map
-                _worldCornerMesh.vertices = new Vector3[]
+                // ===== Submesh 1: Skirt with MARGIN_SIZE at FogHeight =====
+                Vector3[] vertices1 = new Vector3[]
                 {
                     new Vector3(0.0f, FogHeight, 0.0f),
                     new Vector3(0.0f, FogHeight, -MARGIN_SIZE),
@@ -578,21 +590,75 @@ namespace FogManager
                     new Vector3(0.0f, FogHeight, -MARGIN_SIZE),
                 };
                 
-                _worldCornerMesh.triangles = new int[]
+                int[] triangles1 = new int[]
                 {
                     1, 0, 3,
                     1, 3, 2,
-                    4,6,5,
-                    6,7,5,
-                    8,11,10,
-                    10,9,8,
-                    12,14,13,
-                    12,15,14
+                    4, 6, 5,
+                    6, 7, 5,
+                    8, 11, 10,
+                    10, 9, 8,
+                    12, 14, 13,
+                    12, 15, 14
+                };
+
+                totalWidth = MapWidth + GridCellSize;
+                totalHeight = MapHeight + GridCellSize;
+                // ===== Submesh 2: Skirt without MARGIN_SIZE at y=0 =====
+                Vector3[] vertices2 = new Vector3[]
+                {
+                    new Vector3(0.0f, -FogStartPosition.y, 0.0f),
+                    new Vector3(0.0f, -FogStartPosition.y, -MARGIN_SIZE),
+                    new Vector3(totalWidth + MARGIN_SIZE, -FogStartPosition.y, -MARGIN_SIZE),
+                    new Vector3(totalWidth + MARGIN_SIZE, -FogStartPosition.y, 0.0f),
+                    new Vector3(totalWidth, -FogStartPosition.y, 0.0f),
+                    new Vector3(totalWidth + MARGIN_SIZE, -FogStartPosition.y, 0.0f),
+                    new Vector3(totalWidth, -FogStartPosition.y, totalHeight + MARGIN_SIZE),
+                    new Vector3(totalWidth + MARGIN_SIZE, -FogStartPosition.y, totalHeight + MARGIN_SIZE),
+                    new Vector3(-MARGIN_SIZE, -FogStartPosition.y, totalHeight),
+                    new Vector3(totalWidth, -FogStartPosition.y, totalHeight),
+                    new Vector3(totalWidth, -FogStartPosition.y, totalHeight + MARGIN_SIZE),
+                    new Vector3(-MARGIN_SIZE, -FogStartPosition.y, totalHeight + MARGIN_SIZE),
+                    new Vector3(0.0f, -FogStartPosition.y, totalHeight),
+                    new Vector3(-MARGIN_SIZE, -FogStartPosition.y, totalHeight),
+                    new Vector3(-MARGIN_SIZE, -FogStartPosition.y, -MARGIN_SIZE),
+                    new Vector3(0.0f, -FogStartPosition.y, -MARGIN_SIZE),
                 };
                 
-                // UVs
+                // Triangle indices for submesh 2 (offset by 16)
+                int[] triangles2 = new int[]
+                {
+                    // Bottom edge
+                    17, 16, 19,
+                    17, 19, 18,
+                    // Right edge
+                    20, 22, 21,
+                    22, 23, 21,
+                    // Top edge
+                    24, 27, 26,
+                    26, 25, 24,
+                    // Left edge
+                    28, 30, 29,
+                    28, 31, 30
+                };
+
+                // Combine vertices
+                Vector3[] allVertices = vertices1.Concat(vertices2).ToArray();
+                _worldCornerMesh.vertices = allVertices;
+                
+                // Set submesh count
+                _worldCornerMesh.subMeshCount = 2;
+                
+                // Combine triangles
+                int[] allTriangles = triangles2.Concat(triangles1).ToArray();
+
+                // Set triangles for each submesh
+                _worldCornerMesh.SetTriangles(allTriangles, 0);
+                _worldCornerMesh.SetTriangles(allTriangles, 1);
+                
+                // UVs for all vertices
                 Vector2 uvOne = new Vector2(1, 1);
-                _worldCornerMesh.uv = Enumerable.Repeat(uvOne, 16).ToArray();
+                _worldCornerMesh.uv = Enumerable.Repeat(uvOne, allVertices.Length).ToArray();
                 
                 _worldCornerMesh.RecalculateNormals();
                 _worldCornerMesh.RecalculateBounds();

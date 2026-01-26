@@ -194,6 +194,21 @@ namespace FogManager
 
             return true;
         }
+        
+        public bool LockCell(int cellX, int cellZ)
+        {
+            if (cellX < 0 || cellX >= _dataGridCountX || cellZ < 0 || cellZ >= _dataGridCountZ) return false;
+
+            if (_gridData[cellX, cellZ] == FogManager.FOG_TYPE.Locked) return false;
+            
+            _gridData[cellX, cellZ] = FogManager.FOG_TYPE.Locked;
+            SetVertexHeight(cellX, cellZ, 1f);         // 左下
+            SetVertexHeight(cellX + 1, cellZ, 1f);     // 右下
+            SetVertexHeight(cellX + 1, cellZ + 1, 1f); // 右上
+            SetVertexHeight(cellX, cellZ + 1, 1f);     // 左上
+
+            return true;
+        }
 
         public void SetCellUnlocking(int cellX, int cellZ)
         {

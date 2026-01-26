@@ -262,6 +262,14 @@ public class FogTest : MonoBehaviour
     public Vector2Int LockTestCenter;
     public int LockTestRadius = 1;
 
+    [Header("Blink Highlight Test")]
+    public Vector2Int BlinkTestCenter;
+    public int BlinkTestRadius = 1;
+    [Tooltip("呼吸周期时间（秒）")]
+    public float BlinkInterval = 1.0f;
+    [Tooltip("强度倍数（1.5=柔和呼吸，2.0=明显闪烁）")]
+    public float BlinkIntensityMultiplier = 1.5f;
+
     public void TestLockEffect()
     {
         if (_FogManager == null) return;
@@ -309,6 +317,50 @@ public class FogTest : MonoBehaviour
         // 3. 启动加锁动画（从透明到不透明）
         _FogManager.StartLockAreaFogGo();
     }
+
+    public void TestBlinkEffect()
+    {
+        if (_FogManager == null) return;
+
+        List<Vector2Int> gridList = new List<Vector2Int>();
+        
+        // Random Walk Generation for Irregular Continuous Area
+        HashSet<Vector2Int> visited = new HashSet<Vector2Int>();
+        Vector2Int current = BlinkTestCenter;
+        visited.Add(current);
+        gridList.Add(current);
+
+        int steps = BlinkTestRadius * 10; // Number of steps based on radius
+        Vector2Int[] directions = new Vector2Int[] { Vector2Int.up, Vector2Int.down, Vector2Int.left, Vector2Int.right };
+
+        for (int i = 0; i < steps; i++)
+        {
+            Vector2Int dir = directions[UnityEngine.Random.Range(0, 4)];
+            current += dir;
+            
+            // Constrain roughly within radius distance to keep it somewhat centered
+            if (Vector2Int.Distance(current, BlinkTestCenter) > BlinkTestRadius * 2)
+            {
+                current = BlinkTestCenter; // Reset to center if too far
+                continue;
+            }
+
+            if (visited.Add(current))
+            {
+                gridList.Add(current);
+            }
+        }
+
+        // 生成并开始闪烁
+        _FogManager.GenerateBlinkAreaFogGo(gridList);
+        _FogManager.StartBlinkAreaFogGo(BlinkInterval, BlinkIntensityMultiplier);
+    }
+
+    public void StopBlinkEffect()
+    {
+        if (_FogManager == null) return;
+        _FogManager.StopBlinkAreaFogGo();
+    }
 }
 
 [CustomEditor(typeof(FogTest))]
@@ -348,6 +400,17 @@ public class FogTestEditor : Editor
         if (GUILayout.Button("Test Lock Effect"))
         {
             fogTest.TestLockEffect();
+        }
+
+        GUILayout.Space(10);
+        if (GUILayout.Button("Test Blink Effect"))
+        {
+            fogTest.TestBlinkEffect();
+        }
+
+        if (GUILayout.Button("Stop Blink Effect"))
+        {
+            fogTest.StopBlinkEffect();
         }
     }
 }

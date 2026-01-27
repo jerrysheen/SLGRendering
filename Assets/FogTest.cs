@@ -353,7 +353,7 @@ public class FogTest : MonoBehaviour
 
         // 生成并开始闪烁
         _FogManager.GenerateBlinkAreaFogGo(gridList);
-        _FogManager.StartBlinkAreaFogGo(BlinkInterval, BlinkIntensityMultiplier);
+        _FogManager.StartBlinkAreaFogGo(BlinkInterval);
     }
 
     public void StopBlinkEffect()

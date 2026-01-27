@@ -45,6 +45,7 @@ namespace FogManager
         [Header("Materials")]
         public Material FogBaseMaterial; // 地形材质
         public Material FogTopMaterial;  // 地形材质
+        public Material HighLightMaterial;  // 高亮材质
 
         private const int MARGIN_SIZE = 50;
         
@@ -63,9 +64,8 @@ namespace FogManager
         // Blink Effect Objects
         private GameObject _fogBlinkGo;
         private Mesh _fogBlinkMesh;
-        private Material _fogBlinkBaseMaterial;
-        private Material _fogBlinkTopMaterial;
         private Tween _blinkTween;
+        private Color _originalBlinkBaseColor; // 记录原始的高亮颜色
         
         // World Corner Mesh
         private GameObject _worldCornerMeshGo;
@@ -86,6 +86,9 @@ namespace FogManager
         private SingleFogMeshGenerator _meshGenerator;
         private Tween _tween;
 
+        // Overlay：
+        public float InitOpacity = 0;
+        private float _originalOpacity;
         #region Unity Lifecycle
 
         private void Start()
@@ -190,6 +193,9 @@ namespace FogManager
                 new Vector3(GlobalScale * GridCellSize, 1, GlobalScale * GridCellSize)
             );
 
+            if(HighLightMaterial == null) Debug.LogError("Please Assign High LightMaterial");
+            _originalOpacity = InitOpacity;
+            HighLightMaterial.SetFloat("_Opacity", InitOpacity);
             GenerateWorldCornerMesh();
             RebuildFogMesh();
             _borderDirty = false;
@@ -216,8 +222,6 @@ namespace FogManager
             
             if(_fogBlinkMesh != null) Object.Destroy(_fogBlinkMesh);
             if(_fogBlinkGo != null) Object.Destroy(_fogBlinkGo);
-            if(_fogBlinkBaseMaterial != null) Object.Destroy(_fogBlinkBaseMaterial);
-            if(_fogBlinkTopMaterial != null) Object.Destroy(_fogBlinkTopMaterial);
             
             if(_worldCornerMesh != null) Object.Destroy(_worldCornerMesh);
             if(_worldCornerMeshGo != null) Object.Destroy(_worldCornerMeshGo);
@@ -592,100 +596,59 @@ namespace FogManager
                 mf.sharedMesh = _fogBlinkMesh;
                 
                 var mr = _fogBlinkGo.AddComponent<MeshRenderer>();
-                mr.materials = new []{FogBaseMaterial, FogTopMaterial};
+                mr.sharedMaterial = HighLightMaterial;
                 
-                _fogBlinkBaseMaterial = mr.materials[0];
-                _fogBlinkTopMaterial = mr.materials[1];
-                
-                // 调整渲染队列，确保在原始迷雾之后渲染
-                _fogBlinkBaseMaterial.renderQueue = FogBaseMaterial.renderQueue + 2;
-                _fogBlinkTopMaterial.renderQueue = FogTopMaterial.renderQueue + 2;
-                
-                // 初始化 _FogColor1 为原始颜色
-                if (FogTopMaterial != null)
-                {
-                    Color originalFogColor1 = FogTopMaterial.GetColor("_FogColor1");
-                    _fogBlinkTopMaterial.SetColor("_FogColor1", originalFogColor1);
-                }
             }
             else
             {
                 var mf = _fogBlinkGo.GetComponent<MeshFilter>();
                 if (mf != null) mf.sharedMesh = _fogBlinkMesh;
                 
-                // 确保渲染队列正确
-                _fogBlinkBaseMaterial.renderQueue = FogBaseMaterial.renderQueue + 2;
-                _fogBlinkTopMaterial.renderQueue = FogTopMaterial.renderQueue + 2;
-                
-                // Sync colors - 重置为原始材质的颜色
-                _fogBlinkTopMaterial.SetColor("_FogColor", _fogTopLayerColor);
-                _fogBlinkBaseMaterial.SetColor("_FogColor", _fogBaseLayerColor);
-                
-                // 重置 _FogColor1 为原始颜色
-                if (FogTopMaterial != null)
-                {
-                    Color originalFogColor1 = FogTopMaterial.GetColor("_FogColor1");
-                    _fogBlinkTopMaterial.SetColor("_FogColor1", originalFogColor1);
-                }
-                
                 _fogBlinkGo.SetActive(true);
             }
         }
 
         /// <summary>
-        /// 开始呼吸灯动画
-        /// Start the breathing light animation
+        /// 开始呼吸灯动画 - 改变 Alpha (Opacity) 值
         /// </summary>
         /// <param name="blinkInterval">呼吸周期时间（秒）</param>
-        /// <param name="intensityMultiplier">强度倍数（默认1.5倍，更柔和）</param>
-        public void StartBlinkAreaFogGo(float blinkInterval = 1.0f, float intensityMultiplier = 1.5f)
+        public void StartBlinkAreaFogGo(float blinkInterval = 1.0f)
         {
             if (_fogBlinkGo == null) return;
-            
+    
             _blinkTween?.Kill();
-            
-            // 获取 TopMaterial 的原始 _FogColor1 颜色（HDR）
-            Color originalColor = _fogBlinkTopMaterial.GetColor("_FogColor1");
-            Color enhancedColor = originalColor * intensityMultiplier; // 增强颜色强度
-            enhancedColor.a = originalColor.a; // 保持原始 alpha
-            
-            float currentIntensity = 0.0f;
-            
-            // 创建连续的呼吸灯效果
-            // 使用单个 Tween 在 0-1-0 之间循环，更流畅
-            _blinkTween = DOTween.To(() => currentIntensity,
-                    value => {
-                        currentIntensity = value;
-                        // 使用 Sin 曲线模拟呼吸效果：0 -> 1 -> 0
-                        float breathFactor = Mathf.Sin(value * Mathf.PI);
-                        Color blendColor = Color.Lerp(originalColor, enhancedColor, breathFactor);
-                        blendColor.a = originalColor.a; // 保持 alpha 不变
-                        _fogBlinkTopMaterial.SetColor("_FogColor1", blendColor);
-                    },
-                    1.0f,
-                    blinkInterval)
-                .SetEase(Ease.Linear) // 使用线性，由 Sin 函数控制曲线
-                .SetLoops(-1, LoopType.Restart);
+    
+            var mr = _fogBlinkGo.GetComponent<MeshRenderer>();
+            if (mr == null || mr.sharedMaterial == null) return;
+    
+            // 2. 创建动画：直接对 _Opacity 属性做动画
+            // 从当前的默认值变化到 1.0
+            _blinkTween = DOTween.To(
+                    () => HighLightMaterial.GetFloat("_Opacity"), 
+                    x => HighLightMaterial.SetFloat("_Opacity", x), 
+                    1.0f, 
+                    blinkInterval / 2) // 半个周期达到峰值
+                .SetEase(Ease.InOutSine) // 使用正弦缓动，呼吸感更柔和
+                .SetLoops(-1, LoopType.Yoyo); // 使用 Yoyo 实现 默认值 -> 1 -> 默认值 的循环
+
+            _fogBlinkGo.SetActive(true);
         }
 
         /// <summary>
-        /// 停止闪烁并隐藏
-        /// Stop the blink animation and hide the object
+        /// 停止闪烁并恢复原始透明度
         /// </summary>
         public void StopBlinkAreaFogGo()
         {
             _blinkTween?.Kill();
             _blinkTween = null;
-            
+    
+            if (HighLightMaterial != null)
+            {
+                HighLightMaterial.SetFloat("_Opacity", _originalOpacity);
+            }
+    
             if (_fogBlinkGo != null)
             {
-                // 恢复原始颜色
-                if (_fogBlinkTopMaterial != null && FogTopMaterial != null)
-                {
-                    Color originalColor = FogTopMaterial.GetColor("_FogColor1");
-                    _fogBlinkTopMaterial.SetColor("_FogColor1", originalColor);
-                }
-                
                 _fogBlinkGo.SetActive(false);
             }
         }

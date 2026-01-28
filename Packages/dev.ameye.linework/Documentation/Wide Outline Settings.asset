@@ -1,0 +1,172 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &-8707019894893232003
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b8345be34a994929ba7ca6c0b1a5c5c7, type: 3}
+  m_Name: Outline
+  m_EditorClassIdentifier: 
+  silhouetteMaterial: {fileID: 0}
+  silhouetteMaterialInstanced: {fileID: 0}
+  informationMaterial: {fileID: 0}
+  informationMaterialInstanced: {fileID: 0}
+  isActive: 1
+  customDepthEnabled: 0
+  disableWidthControl: 1
+  RenderingLayer: 1
+  layerMask:
+    serializedVersion: 2
+    m_Bits: 4294967295
+  renderQueue: 0
+  occlusion: 3
+  cullingMode: 0
+  closedLoop: 0
+  alphaCutout: 0
+  alphaCutoutTexture: {fileID: 0}
+  alphaCutoutThreshold: 0.5
+  alphaCutoutUVTransform: {x: 0, y: 0, z: 0, w: 0}
+  gpuInstancing: 0
+  vertexAnimation: 0
+  color: {r: 0, g: 1, b: 0, a: 1}
+  width: 20
+--- !u!114 &-8545922770492669611
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b8345be34a994929ba7ca6c0b1a5c5c7, type: 3}
+  m_Name: Outline
+  m_EditorClassIdentifier: 
+  silhouetteMaterial: {fileID: 0}
+  silhouetteMaterialInstanced: {fileID: 0}
+  informationMaterial: {fileID: 0}
+  informationMaterialInstanced: {fileID: 0}
+  isActive: 1
+  customDepthEnabled: 0
+  disableWidthControl: 1
+  RenderingLayer: 1
+  layerMask:
+    serializedVersion: 2
+    m_Bits: 4294967295
+  renderQueue: 0
+  occlusion: 2
+  cullingMode: 0
+  closedLoop: 0
+  alphaCutout: 0
+  alphaCutoutTexture: {fileID: 0}
+  alphaCutoutThreshold: 0.5
+  alphaCutoutUVTransform: {x: 0, y: 0, z: 0, w: 0}
+  gpuInstancing: 0
+  vertexAnimation: 0
+  color: {r: 0, g: 0.82293934, b: 1, a: 1}
+  width: 20
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 1beecfe6c40d4fc397be59c6d99409a5, type: 3}
+  m_Name: Wide Outline Settings
+  m_EditorClassIdentifier: 
+  injectionPoint: 550
+  showInSceneView: 1
+  outlines:
+  - {fileID: -8545922770492669611}
+  - {fileID: 1535833762376070601}
+  materialType: 0
+  customMaterial: {fileID: 0}
+  widthControl: 0
+  sharedWidth: 20
+  gap: 0.52
+  blendMode: 0
+  customDepthBuffer: 0
+  silhouetteBufferFormat: 0
+  occludedColor: {r: 1, g: 0, b: 0, a: 1}
+  clearStencil: 0
+  scaleWithResolution: 0
+  referenceResolution: 2
+  customResolution: 0
+--- !u!114 &1535833762376070601
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b8345be34a994929ba7ca6c0b1a5c5c7, type: 3}
+  m_Name: Outline
+  m_EditorClassIdentifier: 
+  silhouetteMaterial: {fileID: 0}
+  silhouetteMaterialInstanced: {fileID: 0}
+  informationMaterial: {fileID: 0}
+  informationMaterialInstanced: {fileID: 0}
+  isActive: 1
+  customDepthEnabled: 0
+  disableWidthControl: 1
+  RenderingLayer: 1
+  layerMask:
+    serializedVersion: 2
+    m_Bits: 4294967295
+  renderQueue: 0
+  occlusion: 1
+  cullingMode: 0
+  closedLoop: 0
+  alphaCutout: 0
+  alphaCutoutTexture: {fileID: 0}
+  alphaCutoutThreshold: 0.5
+  alphaCutoutUVTransform: {x: 0, y: 0, z: 0, w: 0}
+  gpuInstancing: 0
+  vertexAnimation: 0
+  color: {r: 1, g: 0.8235294, b: 0, a: 1}
+  width: 20
+--- !u!114 &2411895338341357073
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b8345be34a994929ba7ca6c0b1a5c5c7, type: 3}
+  m_Name: Outline
+  m_EditorClassIdentifier: 
+  silhouetteMaterial: {fileID: 0}
+  silhouetteMaterialInstanced: {fileID: 0}
+  informationMaterial: {fileID: 0}
+  informationMaterialInstanced: {fileID: 0}
+  isActive: 1
+  customDepthEnabled: 0
+  disableWidthControl: 1
+  RenderingLayer: 1
+  layerMask:
+    serializedVersion: 2
+    m_Bits: 4294967295
+  renderQueue: 0
+  occlusion: 2
+  cullingMode: 0
+  closedLoop: 0
+  alphaCutout: 0
+  alphaCutoutTexture: {fileID: 0}
+  alphaCutoutThreshold: 0.5
+  alphaCutoutUVTransform: {x: 0, y: 0, z: 0, w: 0}
+  gpuInstancing: 0
+  vertexAnimation: 0
+  color: {r: 1, g: 0.79185, b: 0.4198113, a: 1}
+  width: 20

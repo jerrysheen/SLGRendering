@@ -1,0 +1,166 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &-5085071025092671850
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b1bf42c897c344772a8dea9cae097da4, type: 3}
+  m_Name: FastOutline
+  m_EditorClassIdentifier: 
+  m_Active: 0
+  settings: {fileID: 11400000, guid: 4f1175f712c9643d3823c6c6af00c7ad, type: 2}
+  shaders:
+    mask: {fileID: 4800000, guid: d6efd8a53bb54ff68576b38c066c3134, type: 3}
+    outline: {fileID: 4800000, guid: 981392195909457093e91e09efd412a1, type: 3}
+    outlineInstanced: {fileID: 4800000, guid: 43dbe363270164c96812acf35572a126, type: 3}
+    clear: {fileID: 4800000, guid: 9d6033fe8c48f4059a892093b5eec20b, type: 3}
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: de640fe3d0db1804a85f9fc8f5cadab6, type: 3}
+  m_Name: Linework Renderer
+  m_EditorClassIdentifier: 
+  debugShaders:
+    debugReplacementPS: {fileID: 4800000, guid: cf852408f2e174538bcd9b7fda1c5ae7,
+      type: 3}
+    hdrDebugViewPS: {fileID: 4800000, guid: 573620ae32aec764abd4d728906d2587, type: 3}
+  m_RendererFeatures:
+  - {fileID: 9067931302180775796}
+  - {fileID: -5085071025092671850}
+  - {fileID: 2443533176639873475}
+  - {fileID: 7130316994119293673}
+  - {fileID: 777260331441257631}
+  m_RendererFeatureMap: 746721b279c3d77d9646b833d8326eb9c361804e7a2ce921e95a693287f9f3629ffc8e412762c90a
+  m_UseNativeRenderPass: 0
+  postProcessData: {fileID: 11400000, guid: 41439944d30ece34e96484bdb6645b55, type: 2}
+  xrSystemData: {fileID: 11400000, guid: 60e1133243b97e347b653163a8c01b64, type: 2}
+  shaders:
+    blitPS: {fileID: 4800000, guid: c17132b1f77d20942aa75f8429c0f8bc, type: 3}
+    copyDepthPS: {fileID: 4800000, guid: d6dae50ee9e1bfa4db75f19f99355220, type: 3}
+    screenSpaceShadowPS: {fileID: 0}
+    samplingPS: {fileID: 4800000, guid: 04c410c9937594faa893a11dceb85f7e, type: 3}
+    stencilDeferredPS: {fileID: 4800000, guid: e9155b26e1bc55942a41e518703fe304, type: 3}
+    fallbackErrorPS: {fileID: 4800000, guid: e6e9a19c3678ded42a3bc431ebef7dbd, type: 3}
+    fallbackLoadingPS: {fileID: 4800000, guid: 7f888aff2ac86494babad1c2c5daeee2, type: 3}
+    materialErrorPS: {fileID: 4800000, guid: 5fd9a8feb75a4b5894c241777f519d4e, type: 3}
+    coreBlitPS: {fileID: 4800000, guid: 93446b5c5339d4f00b85c159e1159b7c, type: 3}
+    coreBlitColorAndDepthPS: {fileID: 4800000, guid: d104b2fc1ca6445babb8e90b0758136b,
+      type: 3}
+    blitHDROverlay: {fileID: 4800000, guid: a89bee29cffa951418fc1e2da94d1959, type: 3}
+    cameraMotionVector: {fileID: 4800000, guid: c56b7e0d4c7cb484e959caeeedae9bbf,
+      type: 3}
+    objectMotionVector: {fileID: 4800000, guid: 7b3ede40266cd49a395def176e1bc486,
+      type: 3}
+    dataDrivenLensFlare: {fileID: 4800000, guid: 6cda457ac28612740adb23da5d39ea92,
+      type: 3}
+  m_AssetVersion: 2
+  m_OpaqueLayerMask:
+    serializedVersion: 2
+    m_Bits: 4294967295
+  m_TransparentLayerMask:
+    serializedVersion: 2
+    m_Bits: 4294967295
+  m_DefaultStencilState:
+    overrideStencilState: 0
+    stencilReference: 0
+    stencilCompareFunction: 8
+    passOperation: 2
+    failOperation: 0
+    zFailOperation: 0
+  m_ShadowTransparentReceive: 1
+  m_RenderingMode: 0
+  m_DepthPrimingMode: 0
+  m_CopyDepthMode: 1
+  m_AccurateGbufferNormals: 0
+  m_IntermediateTextureMode: 1
+--- !u!114 &777260331441257631
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4f513a53c9ad43a3860c8a56ea7dd26b, type: 3}
+  m_Name: SurfaceFill
+  m_EditorClassIdentifier: 
+  m_Active: 0
+  settings: {fileID: 11400000, guid: cf7f285ee54ef49d9b9d1863ef75ea60, type: 2}
+  shaders:
+    mask: {fileID: 4800000, guid: 7db39fa69b214149be63e199c01483e7, type: 3}
+    fill: {fileID: 4800000, guid: 60bd843b88e8e491eab96dca4a73ce68, type: 3}
+--- !u!114 &2443533176639873475
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e598cd55476104d909f677d2b056f508, type: 3}
+  m_Name: SoftOutline
+  m_EditorClassIdentifier: 
+  m_Active: 0
+  settings: {fileID: 11400000, guid: 175e846df6f884c13ac188909568c953, type: 2}
+  shaders:
+    mask: {fileID: 4800000, guid: 231df427ffff4fee9202f22ce6a5d357, type: 3}
+    silhouette: {fileID: 4800000, guid: b0e6032b7b104d8db7f40d7f6e743674, type: 3}
+    silhouetteInstanced: {fileID: 4800000, guid: b7b25b6fd39f14aeeba46013a510a40c,
+      type: 3}
+    boxBlur: {fileID: 4800000, guid: d8d4df91388b465aa9a07d27ccc72b73, type: 3}
+    gaussianBlur: {fileID: 4800000, guid: cb6a37cd1abc46e180a83317d8fefb26, type: 3}
+    kawaseBlur: {fileID: 4800000, guid: ead7e4745cd94d22beaeeea69ae381a7, type: 3}
+    dilate: {fileID: 4800000, guid: a987f6629a694e19a74290edccde4040, type: 3}
+    outline: {fileID: 4800000, guid: b0cf66d628f541279229be85e2c31db3, type: 3}
+--- !u!114 &7130316994119293673
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 521933c422ef94aa58e7d435b6f8921a, type: 3}
+  m_Name: WideOutline
+  m_EditorClassIdentifier: 
+  m_Active: 1
+  settings: {fileID: 11400000, guid: 77919a79a0a6848a48cc159fda371efb, type: 2}
+  shaders:
+    mask: {fileID: 4800000, guid: 1ed7bc804a124d559675facf61722b63, type: 3}
+    silhouette: {fileID: 4800000, guid: 2a1be836d8f24bbb91714e9a51f8fec1, type: 3}
+    silhouetteInstanced: {fileID: 4800000, guid: 85d004b6af6cd48209d21826b2f0a5a3,
+      type: 3}
+    outline: {fileID: 4800000, guid: 90865e175cad4ccd80a2e1965c38f3e9, type: 3}
+    clear: {fileID: 4800000, guid: 9d6033fe8c48f4059a892093b5eec20b, type: 3}
+--- !u!114 &9067931302180775796
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9377bada70366419aa6301068e988aa4, type: 3}
+  m_Name: EdgeDetection
+  m_EditorClassIdentifier: 
+  m_Active: 0
+  settings: {fileID: 11400000, guid: e1bb6646214c84437814a6e99de108c9, type: 2}
+  shaders:
+    section: {fileID: 4800000, guid: 555b69c4bab64af2aab316a4335ad6be, type: 3}
+    sectionMask: {fileID: 4800000, guid: 66bb1bcc44054ea3bf6082c4d4e9edf9, type: 3}
+    outline: {fileID: 4800000, guid: 0049e25744c864ee4916fc340cf7957f, type: 3}

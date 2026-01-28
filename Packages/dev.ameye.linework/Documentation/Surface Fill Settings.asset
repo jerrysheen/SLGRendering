@@ -1,0 +1,157 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &-8741038627309496143
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9d0a7dc71beb4da8aba332c635284136, type: 3}
+  m_Name: Fill
+  m_EditorClassIdentifier: 
+  active: 1
+  RenderingLayer:
+    serializedVersion: 0
+    m_Bits: 256
+  occlusion: 2
+  blendMode: 2
+  pattern: 2
+  primaryColor: {r: 1, g: 1, b: 1, a: 0.19215687}
+  secondaryColor: {r: 0, g: 0.121106625, b: 1, a: 0.23529412}
+  texture: {fileID: 2800000, guid: 2b9751090e8dd409283fbc8b659a9460, type: 3}
+  channel: 0
+  frequencyX: 23.7
+  frequencyY: 2
+  density: 0.546
+  rotation: 43
+  direction: 0
+  offset: 0
+  speed: 0
+  scale: 2.1
+  width: 0.248
+  softness: 0.406
+  power: 0.112
+--- !u!114 &-1487666613593516579
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9d0a7dc71beb4da8aba332c635284136, type: 3}
+  m_Name: Fill
+  m_EditorClassIdentifier: 
+  active: 0
+  RenderingLayer:
+    serializedVersion: 0
+    m_Bits: 1
+  occlusion: 0
+  blendMode: 0
+  pattern: 2
+  primaryColor: {r: 0, g: 1, b: 0, a: 1}
+  secondaryColor: {r: 1, g: 0, b: 0, a: 1}
+  texture: {fileID: 0}
+  channel: 0
+  frequencyX: 40
+  frequencyY: 2
+  density: 0.5
+  rotation: 0
+  direction: 0
+  offset: 0
+  speed: 0.02
+  scale: 1
+  width: 0.3
+  softness: 0
+  power: 0.8
+--- !u!114 &-1299630800724153924
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9d0a7dc71beb4da8aba332c635284136, type: 3}
+  m_Name: Fill
+  m_EditorClassIdentifier: 
+  active: 1
+  RenderingLayer:
+    serializedVersion: 0
+    m_Bits: 2
+  occlusion: 1
+  blendMode: 0
+  pattern: 3
+  primaryColor: {r: 1, g: 0.8474299, b: 0.5990566, a: 1}
+  secondaryColor: {r: 1, g: 0, b: 0, a: 0}
+  texture: {fileID: 2800000, guid: 7821ee4dad2b24d14a242c64ec296417, type: 3}
+  channel: 0
+  frequencyX: 40
+  frequencyY: 2
+  density: 0.5
+  rotation: 0
+  direction: 0
+  offset: 0
+  speed: 0.02
+  scale: 11.7
+  width: 0.3
+  softness: 0
+  power: 0.8
+--- !u!114 &-870321316870223651
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9d0a7dc71beb4da8aba332c635284136, type: 3}
+  m_Name: Fill
+  m_EditorClassIdentifier: 
+  active: 1
+  RenderingLayer:
+    serializedVersion: 0
+    m_Bits: 2
+  occlusion: 2
+  blendMode: 0
+  pattern: 3
+  primaryColor: {r: 0.5896226, g: 0.86332333, b: 1, a: 1}
+  secondaryColor: {r: 1, g: 0, b: 0, a: 0}
+  texture: {fileID: 0}
+  channel: 0
+  frequencyX: 40
+  frequencyY: 2
+  density: 0.5
+  rotation: 0
+  direction: 0
+  offset: 0
+  speed: 0.02
+  scale: 1
+  width: 0.3
+  softness: 0
+  power: 0.8
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: bde5f93f258b40fd8d875a3300bd357a, type: 3}
+  m_Name: Surface Fill Settings
+  m_EditorClassIdentifier: 
+  injectionPoint: 550
+  showInSceneView: 1
+  clearStencil: 0
+  debugStage: 0
+  fills:
+  - {fileID: -1299630800724153924}
+  - {fileID: -870321316870223651}
